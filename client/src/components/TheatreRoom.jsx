@@ -647,7 +647,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
         magnetURI: '',
         fileName: '',
         fileSize: 0,
-        youtubeUrl: ''
+        youtubeUrl: '',
+        cloudUrl: ''
       });
     }
   };
@@ -1328,6 +1329,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                     onSeeked={handleLocalSeeked}
                     onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
                     onDurationChange={(e) => setDuration(e.target.duration)}
+                    playsInline
+                    webkit-playsinline="true"
+                    preload="auto"
                   />
                 )}
 
