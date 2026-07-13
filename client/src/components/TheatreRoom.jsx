@@ -965,7 +965,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
       {/* Main Workspace */}
       <div className="flex-grow flex flex-col md:flex-row relative overflow-y-auto md:overflow-hidden">
-        <div className="flex-grow w-full flex flex-col p-4 md:p-6 items-center justify-center md:overflow-y-auto md:max-h-[calc(100vh-80px)]">
+        <div className="flex-grow w-full flex flex-col p-4 md:p-6 items-center justify-start md:justify-center overflow-y-auto h-[calc(100vh-80px)]">
           
           {/* Status Bar */}
           {bufferStatus && (
@@ -992,7 +992,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               onDragOver={handleDrag}
               onDragLeave={handleDrag}
               onDrop={handleDrop}
-              className={`w-full max-w-xl glass-panel p-10 rounded-2xl text-center flex flex-col items-center border relative group overflow-hidden shadow-2xl transition-all duration-200 ${
+              className={`w-full max-w-xl glass-panel p-6 sm:p-8 md:p-10 rounded-2xl text-center flex flex-col items-center border relative group overflow-visible shadow-2xl transition-all duration-200 ${
                 dragActive 
                   ? 'border-indigo-500 bg-indigo-950/15 scale-[1.01]' 
                   : 'border-slate-800 bg-gradient-to-b from-[#0b0f19]/80 to-[#05070c]/90'
@@ -1000,19 +1000,19 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
             >
               <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600"></div>
               
-              <div className={`p-6 rounded-full mb-6 shadow-inner transition-all duration-300 ${
+              <div className={`p-4 md:p-6 rounded-full mb-4 md:mb-6 shadow-inner transition-all duration-300 ${
                 dragActive ? 'bg-indigo-500/20 text-indigo-300 scale-110' : 'bg-indigo-600/10 text-indigo-400'
               }`}>
-                <Video className="h-12 w-12" />
+                <Video className="h-10 w-10 md:h-12 md:w-12" />
               </div>
               
-              <h3 className="text-2xl font-extrabold text-white tracking-tight">Select Movie to Host</h3>
-              <p className="text-slate-400 text-sm mt-3 px-6 leading-relaxed">
+              <h3 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Select Movie to Host</h3>
+              <p className="text-slate-400 text-xs sm:text-sm mt-2 md:mt-3 px-4 md:px-6 leading-relaxed">
                 Drag and drop your movie file here, or click to choose from your computer. 
                 Your guest will download it directly from you in real-time.
               </p>
-
-              <label className="mt-8 cursor-pointer group/btn inline-flex items-center justify-center py-3.5 px-7 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-sm font-semibold tracking-wide shadow-lg shadow-indigo-600/20 transition-all duration-200 hover:scale-[1.01]">
+ 
+              <label className="mt-5 md:mt-8 cursor-pointer group/btn inline-flex items-center justify-center py-3 px-6 md:py-3.5 md:px-7 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white rounded-xl text-xs sm:text-sm font-semibold tracking-wide shadow-lg shadow-indigo-600/20 transition-all duration-200 hover:scale-[1.01]">
                 <span>Choose Movie File</span>
                 <input
                   type="file"
@@ -1023,7 +1023,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               </label>
 
               {/* YouTube Link Integration */}
-              <div className="w-full mt-8 border-t border-slate-900/60 pt-8 text-left">
+              <div className="w-full mt-5 md:mt-8 border-t border-slate-900/60 pt-5 md:pt-8 text-left">
                 <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2">
                   Or Stream from YouTube
                 </label>

@@ -49,3 +49,45 @@ body {
   font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
 }
+
+/* Height-based media queries to fit host cards perfectly on compact screen heights (e.g. Macbooks) */
+@media (max-height: 750px) {
+  .glass-panel {
+    padding: 1.25rem sm:p-6 !important;
+  }
+  /* Hide the large decorative video and download icons to save critical vertical space */
+  .glass-panel .rounded-full {
+    display: none !important;
+  }
+  .glass-panel h3 {
+    font-size: 1.25rem !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  .glass-panel p {
+    font-size: 0.75rem !important;
+    margin-top: 0.35rem !important;
+    margin-bottom: 0.35rem !important;
+    line-height: 1.3 !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  .glass-panel label {
+    margin-top: 0.75rem !important;
+    padding: 0.5rem 1rem !important;
+    font-size: 0.75rem !important;
+  }
+  /* Reduce YouTube form layout spaces */
+  .glass-panel div.border-t {
+    margin-top: 0.75rem !important;
+    padding-top: 0.75rem !important;
+  }
+  .glass-panel form {
+    margin-top: 0.25rem !important;
+  }
+  .glass-panel input, .glass-panel button[type="submit"] {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    font-size: 11px !important;
+  }
+}

@@ -235,7 +235,7 @@ function App() {
                       Room Code
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-indigo-400">
                         <Key className="h-4 w-4" />
                       </div>
                       <input
@@ -244,7 +244,7 @@ function App() {
                         required
                         value={roomCodeInput}
                         onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-                        className="w-full py-3 pl-9 pr-4 bg-slate-950/20 border border-slate-900 rounded-xl text-xs font-bold tracking-widest text-center uppercase placeholder:normal-case placeholder:font-semibold placeholder:tracking-normal text-violet-300 focus:border-violet-500/50 transition-all animate-pulse"
+                        className="w-full py-3 pl-10 pr-4 bg-slate-950/40 border border-indigo-500/30 focus:border-indigo-500 rounded-xl text-xs font-bold tracking-widest text-center uppercase placeholder:normal-case placeholder:font-semibold placeholder:text-slate-500 placeholder:tracking-normal text-indigo-200 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] transition-all"
                         placeholder="Enter 6-digit Code"
                       />
                     </div>
@@ -252,7 +252,7 @@ function App() {
 
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-between py-3 px-5 bg-gradient-to-r from-violet-650 to-violet-750 hover:from-violet-555 hover:to-violet-650 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-violet-600/10 hover:shadow-violet-600/20"
+                    className="w-full flex items-center justify-between py-3 px-5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20"
                   >
                     <span>Join Room</span>
                     <ArrowRight className="h-4 w-4" />
@@ -268,7 +268,17 @@ function App() {
 
       {/* Footer Info */}
       <footer className="py-5 border-t border-slate-900 bg-[#02040a] text-center text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-        <span>&copy; {new Date().getFullYear()} Movie Dekhba &bull; Synced Movie Night</span>
+        <span>
+          &copy; {new Date().getFullYear()} Movie Dekhba &bull; All Rights Reserved &bull; Developed by{' '}
+          <a 
+            href="https://github.com/reza-05" 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="text-indigo-400 hover:text-indigo-300 transition-colors hover:underline normal-case font-bold"
+          >
+            reza-05
+          </a>
+        </span>
       </footer>
     </div>
   );
