@@ -38,24 +38,24 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Premium movie wall catalog containing user-requested titles
+// Premium movie wall catalog containing user-requested titles with direct poster images links
 const MOVIES_WALL = [
-  { title: "Grand Blue Dreaming", type: "Anime", rating: "8.3", year: "2018", bg: "from-[#1e3a8a] to-[#020617]" },
-  { title: "Liar Game", type: "Series", rating: "8.1", year: "2007", bg: "from-[#7f1d1d] to-[#020617]" },
-  { title: "Farming Life in Another World", type: "Anime", rating: "7.6", year: "2023", bg: "from-[#064e3b] to-[#020617]" },
-  { title: "Delhi Belly", type: "Movie", rating: "7.6", year: "2011", bg: "from-[#7c2d12] to-[#020617]" },
-  { title: "Zombie Fight Club", type: "Movie", rating: "5.6", year: "2014", bg: "from-[#881337] to-[#020617]" },
-  { title: "11.22.63", type: "Series", rating: "8.7", year: "2016", bg: "from-[#4c1d95] to-[#020617]" },
-  { title: "Super 30", type: "Movie", rating: "8.0", year: "2019", bg: "from-[#164e63] to-[#020617]" },
-  { title: "One Piece", type: "Anime", rating: "8.9", year: "1999", bg: "from-[#854d0e] to-[#020617]" },
-  { title: "Mushoku Tensei", type: "Anime", rating: "8.4", year: "2021", bg: "from-[#78350f] to-[#020617]" },
-  { title: "Animal", type: "Movie", rating: "6.1", year: "2023", bg: "from-[#3f3f46] to-[#020617]" },
-  { title: "Tiger Zinda Hai", type: "Movie", rating: "6.2", year: "2017", bg: "from-[#14532d] to-[#020617]" },
-  { title: "100 Foot Wave", type: "Series", rating: "8.1", year: "2021", bg: "from-[#0369a1] to-[#020617]" },
-  { title: "Unknown", type: "Movie", rating: "6.8", year: "2022", bg: "from-[#581c87] to-[#020617]" },
-  { title: "Alive", type: "Movie", rating: "6.3", year: "2020", bg: "from-[#334155] to-[#020617]" },
-  { title: "Mission Mangal", type: "Movie", rating: "6.5", year: "2019", bg: "from-[#c2410c] to-[#020617]" },
-  { title: "Three of Us", type: "Movie", rating: "7.4", year: "2023", bg: "from-[#1d4ed8] to-[#020617]" }
+  { title: "Kota Factory", type: "Series", rating: "9.0", year: "2019", img: "/posters/kota_factory.jpg" },
+  { title: "Zero Day", type: "Series", rating: "8.2", year: "2024", img: "/posters/zero_day.png" },
+  { title: "Peaky Blinders", type: "Series", rating: "8.8", year: "2013", img: "/posters/peaky_blinders.png" },
+  { title: "Interstellar", type: "Movie", rating: "8.7", year: "2014", img: "/posters/interstellar.png" },
+  { title: "Breaking Bad", type: "Series", rating: "9.5", year: "2008", img: "/posters/breaking_bad.jpg" },
+  { title: "Mirzapur", type: "Series", rating: "8.5", year: "2018", img: "/posters/mirzapur.jpg" },
+  { title: "Better Call Saul", type: "Series", rating: "8.9", year: "2015", img: "/posters/better_call_saul.jpg" },
+  { title: "Weathering With You", type: "Anime", rating: "7.5", year: "2019", img: "/posters/weathering_with_you.jpg" },
+  { title: "Delhi Belly", type: "Movie", rating: "7.6", year: "2011", img: "/posters/delhi_belly.jpg" },
+  { title: "Your Name", type: "Anime", rating: "8.4", year: "2016", img: "/posters/your_name.jpg" },
+  { title: "Death Note", type: "Anime", rating: "9.0", year: "2006", img: "/posters/poster_extra_1.jpg" },
+  { title: "Tiger Zinda Hai", type: "Movie", rating: "6.2", year: "2017", img: "/posters/poster_extra_2.jpg" },
+  { title: "Animal", type: "Movie", rating: "6.1", year: "2023", img: "/posters/poster_extra_3.jpg" },
+  { title: "Avengers: Endgame", type: "Movie", rating: "8.4", year: "2019", img: "/posters/avengers_endgame.jpg" },
+  { title: "Monster", type: "Anime", rating: "8.7", year: "2004", img: "/posters/monster_anime.jpg" },
+  { title: "Peaky Blinders", type: "Series", rating: "8.8", year: "2013", img: "/posters/peaky_blinders.png" }
 ];
 
 function App() {
@@ -109,34 +109,39 @@ function App() {
     setActiveRoomCode(null);
   };
 
-  // Helper function to render staggered movie cards
+  // Helper function to render staggered movie cards with actual poster images
   const renderMovieCard = (movie, idx) => (
     <div 
       key={idx}
-      className={`w-full aspect-[2/3] bg-gradient-to-br ${movie.bg} border border-white/[0.04] rounded-2xl flex flex-col justify-between p-4 relative shadow-xl overflow-hidden group select-none`}
+      className="w-full aspect-[2/3] bg-slate-950 border border-white/[0.04] rounded-2xl relative shadow-xl overflow-hidden group select-none"
     >
-      <div className="absolute inset-0 bg-black/10 flex items-center justify-center pointer-events-none">
-        <svg className="w-10 h-10 text-white/5" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5v14l11-7z" />
-        </svg>
-      </div>
-      <div className="flex justify-between items-center z-10">
-        <span className={`text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full text-white/90 border border-white/5 ${
-          movie.type === 'Anime' ? 'bg-indigo-600/30' : movie.type === 'Series' ? 'bg-[#5b21b6]/30' : 'bg-rose-600/30'
-        }`}>
-          {movie.type}
-        </span>
-        <span className="text-[8px] font-bold text-amber-400 bg-black/40 px-1.5 py-0.5 rounded-full backdrop-blur-sm border border-amber-500/10 flex items-center gap-0.5">
-          ⭐ {movie.rating}
-        </span>
-      </div>
-      <div className="z-10 text-left">
-        <h4 className="text-xs font-black text-white leading-tight drop-shadow-md truncate max-w-[130px]">
-          {movie.title}
-        </h4>
-        <p className="text-[8px] font-bold text-slate-400 mt-0.5">
-          {movie.year}
-        </p>
+      <img 
+        src={movie.img} 
+        alt={movie.title}
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        loading="lazy"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
+
+      <div className="absolute inset-0 flex flex-col justify-between p-4 z-10">
+        <div className="flex justify-between items-center">
+          <span className={`text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full text-white/90 border border-white/5 ${
+            movie.type === 'Anime' ? 'bg-indigo-600/60' : movie.type === 'Series' ? 'bg-[#5b21b6]/60' : 'bg-rose-600/60'
+          }`}>
+            {movie.type}
+          </span>
+          <span className="text-[8px] font-bold text-amber-400 bg-black/50 px-1.5 py-0.5 rounded-full backdrop-blur-sm border border-amber-500/10 flex items-center gap-0.5">
+            ⭐ {movie.rating}
+          </span>
+        </div>
+        <div className="text-left">
+          <h4 className="text-xs font-black text-white leading-tight drop-shadow-md truncate max-w-[130px]">
+            {movie.title}
+          </h4>
+          <p className="text-[8px] font-bold text-slate-300 mt-0.5">
+            {movie.year}
+          </p>
+        </div>
       </div>
     </div>
   );
