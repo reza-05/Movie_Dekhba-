@@ -166,7 +166,7 @@ function App() {
       <div className="fixed inset-0 bg-[#02040a] -z-30 pointer-events-none" />
 
       {/* 3D Curved Perspective Movie Grid Background (Fixed and Grid based) */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-20 flex justify-center items-center opacity-[0.22] select-none">
+      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-20 flex justify-center items-center opacity-[0.65] select-none">
         <div 
           className="w-[125%] h-[125%] grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5"
           style={{ transform: 'perspective(1200px) rotateX(24deg) rotateY(-10deg) rotateZ(10deg) skewX(-8deg) scale(1.15)' }}
@@ -190,7 +190,7 @@ function App() {
       <div 
         className="fixed inset-0 backdrop-blur-[2px] -z-10 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at center, rgba(2, 4, 10, 0.4) 0%, rgba(2, 4, 10, 0.85) 60%, rgba(2, 4, 10, 0.98) 100%)'
+          background: 'radial-gradient(circle at center, rgba(2, 4, 10, 0.1) 0%, rgba(2, 4, 10, 0.7) 50%, rgba(2, 4, 10, 0.98) 100%)'
         }}
       />
 
