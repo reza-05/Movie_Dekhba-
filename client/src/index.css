@@ -100,3 +100,22 @@ body {
 .animate-fade-in {
   animation: fadeIn 0.3s ease-out forwards;
 }
+
+/* Infinite Scrolling Movie Grid Animations */
+@keyframes scrollWallUp {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-33.333%); }
+}
+
+@keyframes scrollWallDown {
+  0% { transform: translateY(-33.333%); }
+  100% { transform: translateY(0); }
+}
+
+.animate-scroll-up {
+  animation: scrollWallUp 45s linear infinite;
+}
+
+.animate-scroll-down {
+  animation: scrollWallDown 45s linear infinite;
+}

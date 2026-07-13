@@ -38,6 +38,26 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+// Premium movie wall catalog containing user-requested titles
+const MOVIES_WALL = [
+  { title: "Grand Blue Dreaming", type: "Anime", rating: "8.3", year: "2018", bg: "from-[#1e3a8a] to-[#020617]" },
+  { title: "Liar Game", type: "Series", rating: "8.1", year: "2007", bg: "from-[#7f1d1d] to-[#020617]" },
+  { title: "Farming Life in Another World", type: "Anime", rating: "7.6", year: "2023", bg: "from-[#064e3b] to-[#020617]" },
+  { title: "Delhi Belly", type: "Movie", rating: "7.6", year: "2011", bg: "from-[#7c2d12] to-[#020617]" },
+  { title: "Zombie Fight Club", type: "Movie", rating: "5.6", year: "2014", bg: "from-[#881337] to-[#020617]" },
+  { title: "11.22.63", type: "Series", rating: "8.7", year: "2016", bg: "from-[#4c1d95] to-[#020617]" },
+  { title: "Super 30", type: "Movie", rating: "8.0", year: "2019", bg: "from-[#164e63] to-[#020617]" },
+  { title: "One Piece", type: "Anime", rating: "8.9", year: "1999", bg: "from-[#854d0e] to-[#020617]" },
+  { title: "Mushoku Tensei", type: "Anime", rating: "8.4", year: "2021", bg: "from-[#78350f] to-[#020617]" },
+  { title: "Animal", type: "Movie", rating: "6.1", year: "2023", bg: "from-[#3f3f46] to-[#020617]" },
+  { title: "Tiger Zinda Hai", type: "Movie", rating: "6.2", year: "2017", bg: "from-[#14532d] to-[#020617]" },
+  { title: "100 Foot Wave", type: "Series", rating: "8.1", year: "2021", bg: "from-[#0369a1] to-[#020617]" },
+  { title: "Unknown", type: "Movie", rating: "6.8", year: "2022", bg: "from-[#581c87] to-[#020617]" },
+  { title: "Alive", type: "Movie", rating: "6.3", year: "2020", bg: "from-[#334155] to-[#020617]" },
+  { title: "Mission Mangal", type: "Movie", rating: "6.5", year: "2019", bg: "from-[#c2410c] to-[#020617]" },
+  { title: "Three of Us", type: "Movie", rating: "7.4", year: "2023", bg: "from-[#1d4ed8] to-[#020617]" }
+];
+
 function App() {
   const [userName, setUserName] = useState(() => localStorage.getItem('movie_dekhba_username') || '');
   const [roomCodeInput, setRoomCodeInput] = useState('');
@@ -89,6 +109,44 @@ function App() {
     setActiveRoomCode(null);
   };
 
+  // Helper function to render staggered movie cards
+  const renderMovieCard = (movie, idx) => (
+    <div 
+      key={idx}
+      className={`w-full aspect-[2/3] bg-gradient-to-br ${movie.bg} border border-white/[0.04] rounded-2xl flex flex-col justify-between p-4 relative shadow-xl overflow-hidden group select-none`}
+    >
+      <div className="absolute inset-0 bg-black/10 flex items-center justify-center pointer-events-none">
+        <svg className="w-10 h-10 text-white/5" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </div>
+      <div className="flex justify-between items-center z-10">
+        <span className={`text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full text-white/90 border border-white/5 ${
+          movie.type === 'Anime' ? 'bg-indigo-600/30' : movie.type === 'Series' ? 'bg-[#5b21b6]/30' : 'bg-rose-600/30'
+        }`}>
+          {movie.type}
+        </span>
+        <span className="text-[8px] font-bold text-amber-400 bg-black/40 px-1.5 py-0.5 rounded-full backdrop-blur-sm border border-amber-500/10 flex items-center gap-0.5">
+          ⭐ {movie.rating}
+        </span>
+      </div>
+      <div className="z-10 text-left">
+        <h4 className="text-xs font-black text-white leading-tight drop-shadow-md truncate max-w-[130px]">
+          {movie.title}
+        </h4>
+        <p className="text-[8px] font-bold text-slate-400 mt-0.5">
+          {movie.year}
+        </p>
+      </div>
+    </div>
+  );
+
+  // Set up staggered background scroll lists
+  const col1 = [...MOVIES_WALL, ...MOVIES_WALL, ...MOVIES_WALL];
+  const col2 = [...MOVIES_WALL.slice().reverse(), ...MOVIES_WALL.slice().reverse(), ...MOVIES_WALL.slice().reverse()];
+  const col3 = [...MOVIES_WALL.slice(4), ...MOVIES_WALL.slice(0, 4), ...MOVIES_WALL, ...MOVIES_WALL];
+  const col4 = [...MOVIES_WALL.slice(8), ...MOVIES_WALL.slice(0, 8), ...MOVIES_WALL, ...MOVIES_WALL];
+
   if (activeRoomCode) {
     return (
       <ErrorBoundary>
@@ -102,8 +160,37 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#02040a] flex flex-col justify-between text-slate-200 antialiased selection:bg-indigo-500/30 selection:text-indigo-200">
+    <div className="min-h-screen bg-[#02040a] flex flex-col justify-between text-slate-200 antialiased selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-x-hidden">
       
+      {/* 3D Curved Perspective Movie Grid Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-20 flex justify-center items-center opacity-[0.22] select-none">
+        <div 
+          className="w-[125%] h-[125%] flex gap-5 justify-center"
+          style={{ transform: 'perspective(1200px) rotateX(24deg) rotateY(-10deg) rotateZ(10deg) skewX(-8deg) scale(1.15)' }}
+        >
+          <div className="flex-1 flex flex-col gap-5 animate-scroll-up">
+            {col1.map((movie, idx) => renderMovieCard(movie, idx))}
+          </div>
+          <div className="flex-1 flex flex-col gap-5 animate-scroll-down mt-[-300px]">
+            {col2.map((movie, idx) => renderMovieCard(movie, idx))}
+          </div>
+          <div className="flex-1 flex flex-col gap-5 animate-scroll-up hidden sm:flex">
+            {col3.map((movie, idx) => renderMovieCard(movie, idx))}
+          </div>
+          <div className="flex-1 flex flex-col gap-5 animate-scroll-down mt-[-150px] hidden md:flex">
+            {col4.map((movie, idx) => renderMovieCard(movie, idx))}
+          </div>
+        </div>
+      </div>
+
+      {/* Radial Spotlighting Overlay with Backdrop Blur */}
+      <div 
+        className="absolute inset-0 backdrop-blur-[2px] -z-10 pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at center, rgba(2, 4, 10, 0.4) 0%, rgba(2, 4, 10, 0.85) 60%, rgba(2, 4, 10, 0.98) 100%)'
+        }}
+      />
+
       {/* Top Header/Navbar */}
       <header className="px-6 md:px-12 py-5 flex items-center justify-between border-b border-slate-900/60 bg-[#02040a]/40 backdrop-blur-lg sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -121,30 +208,25 @@ function App() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-grow flex items-center justify-center px-6 py-12 md:py-24 relative overflow-hidden">
-        {/* Glowing Background Accents */}
-        <div className="absolute top-1/4 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[350px] md:w-[500px] h-[350px] md:h-[500px] bg-indigo-600/5 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
-        <div className="absolute bottom-1/4 right-1/3 translate-x-1/2 translate-y-1/2 w-[350px] md:w-[500px] h-[350px] md:h-[500px] bg-violet-600/5 rounded-full blur-[80px] -z-10 pointer-events-none"></div>
-
-        <div className="w-full max-w-5xl grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+      <main className="flex-grow flex items-center justify-center px-6 py-12 md:py-20 relative z-10">
+        <div className="w-full max-w-4xl text-center space-y-10 flex flex-col items-center">
           
-          {/* Left Column: Clean Minimal Typography (Removed Mock Player) */}
-          <div className="lg:col-span-7 space-y-6 text-left">
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.05]">
+          {/* Centered Hero Heading */}
+          <div className="space-y-4 max-w-3xl">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-white leading-[1.1] md:leading-[1.05]">
               Watch movies<br />
               together with<br />
               <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
-                your friend.
+                your friends.
               </span>
             </h1>
-            
-            <p className="text-slate-400 text-base md:text-lg max-w-xl leading-relaxed font-medium">
-              Direct high-speed movie rooms. Upload files from your local storage and watch together in real-time with no size limits or quality loss.
+            <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto leading-relaxed font-semibold">
+              Host a room and stream movies from local storage or YouTube in real-time, perfectly synced with your friends. Zero buffering, zero size limits.
             </p>
           </div>
 
-          {/* Right Column: Interactive Tabbed Room Access Widget */}
-          <div className="lg:col-span-5 w-full">
+          {/* Centered Interactive Room Access Widget */}
+          <div className="w-full max-w-md">
             <div className="glass-panel p-8 rounded-3xl border border-white/[0.04] bg-gradient-to-b from-[#0b0f19]/80 to-[#05070c]/90 shadow-2xl relative transition-all duration-300">
               <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 rounded-t-3xl"></div>
 
@@ -182,7 +264,7 @@ function App() {
               {activeTab === 'host' ? (
                 <form onSubmit={handleCreateRoom} className="space-y-6">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2">
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2 text-left">
                       Display Name
                     </label>
                     <div className="relative">
@@ -212,7 +294,7 @@ function App() {
                 /* Tab Content: Join Room Form */
                 <form onSubmit={handleJoinRoom} className="space-y-5">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2">
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2 text-left">
                       Display Name
                     </label>
                     <div className="relative">
@@ -231,7 +313,7 @@ function App() {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2">
+                    <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2 text-left">
                       Room Code
                     </label>
                     <div className="relative">
@@ -267,7 +349,7 @@ function App() {
       </main>
 
       {/* Footer Info */}
-      <footer className="py-5 border-t border-slate-900 bg-[#02040a] text-center text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+      <footer className="py-5 border-t border-slate-900 bg-[#02040a] text-center text-[10px] text-slate-500 font-semibold uppercase tracking-wider relative z-10">
         <span>
           &copy; {new Date().getFullYear()} Movie Dekhba &bull; All Rights Reserved &bull; Developed by{' '}
           <a 
