@@ -160,8 +160,11 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#02040a] flex flex-col justify-between text-slate-200 antialiased selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-x-hidden">
+    <div className="min-h-screen flex flex-col justify-between text-slate-200 antialiased selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-x-hidden">
       
+      {/* Solid background color container at bottom of z-stack */}
+      <div className="absolute inset-0 bg-[#02040a] -z-30 pointer-events-none" />
+
       {/* 3D Curved Perspective Movie Grid Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none -z-20 flex justify-center items-center opacity-[0.22] select-none">
         <div 
