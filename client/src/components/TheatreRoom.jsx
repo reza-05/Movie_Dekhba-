@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { 
   Play, Pause, Volume2, Users, Send, Video, 
   ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles,
-  RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles
+  RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
@@ -54,6 +54,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
   const [guestProgress, setGuestProgress] = useState(0);
   const [isGuestReady, setIsGuestReady] = useState(false);
+
+  const [activeToast, setActiveToast] = useState(null);
+  const toastTimeoutRef = useRef(null);
 
   const initialVideoState = useRef(null);
 
@@ -280,6 +283,17 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
     socket.current.on('chat-message', (msg) => {
       setMessages((prev) => [...prev, msg]);
+
+      // Show toast if the message is from someone else
+      if (msg.sender !== userName) {
+        setActiveToast(msg);
+        if (toastTimeoutRef.current) {
+          clearTimeout(toastTimeoutRef.current);
+        }
+        toastTimeoutRef.current = setTimeout(() => {
+          setActiveToast(null);
+        }, 4000);
+      }
     });
 
     socket.current.on('drift-sync', ({ currentTime }) => {
@@ -1066,8 +1080,19 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
       {/* Main Workspace */}
       <div className="flex-grow flex flex-col md:flex-row relative overflow-y-auto md:overflow-hidden">
-        <div className="flex-grow w-full flex flex-col p-4 md:p-6 items-center justify-start md:justify-center overflow-y-auto h-[calc(100vh-80px)]">
+        <div className="flex-grow w-full flex flex-col p-4 md:p-6 items-center justify-start md:justify-center overflow-y-auto h-[calc(100vh-80px)] relative">
           
+          {/* Floating pull tab if chat is closed */}
+          {!chatOpen && (
+            <button 
+              onClick={() => setChatOpen(true)}
+              className="fixed right-0 top-1/2 -translate-y-1/2 p-2.5 rounded-l-2xl bg-[#0a101d]/90 border-l border-y border-slate-800 text-indigo-400 hover:text-white shadow-2xl hover:bg-slate-900 transition-all z-40 flex items-center justify-center hover:pr-4"
+              title="Expand Chat"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          )}
+
           {/* Status Bar */}
           {bufferStatus && (
             <div className="w-full max-w-5xl mb-4 bg-indigo-950/20 border border-indigo-500/20 px-4 py-2.5 rounded-lg flex flex-col gap-2 text-xs text-indigo-300">
@@ -1210,7 +1235,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                 )}
 
                 {/* Host Waiting Overlay for Guest Readiness */}
-                {isHost && !isGuestReady && (
+                {isHost && !isGuestReady && !isPlaying && (
                   <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-6 text-center select-none animate-fade-in">
                     {renderProjectorIcon()}
                     <h3 className="text-xl font-bold text-white tracking-tight">Syncing Session...</h3>
@@ -1248,7 +1273,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                 )}
 
                 {/* Custom Overlay Controls - Visible on Hover or when Paused */}
-                <div className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent flex flex-col gap-3 transition-opacity duration-300 z-10 ${
+                <div className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent flex flex-col gap-3 transition-opacity duration-300 z-30 ${
                   (!isPlaying || controlsVisible) ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}>
                   
@@ -1346,6 +1371,26 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                   </div>
 
                 </div>
+
+                {/* Active Toast Message Popup */}
+                {activeToast && (
+                  <div className="absolute bottom-20 right-4 max-w-xs md:max-w-sm bg-slate-950/95 border border-indigo-500/40 text-white rounded-xl p-3.5 shadow-2xl flex flex-col gap-1 backdrop-blur-md animate-fade-in z-45 transition-all duration-300">
+                    <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-400">
+                        New Message from {activeToast.sender}
+                      </span>
+                      <button 
+                        onClick={() => setActiveToast(null)}
+                        className="text-slate-400 hover:text-white transition-colors"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-200 break-words leading-relaxed pt-1 font-medium">
+                      {activeToast.text}
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between px-2 text-xs">
@@ -1366,7 +1411,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
           <div className="w-full max-w-5xl mt-6 border-t border-slate-800/80 pt-6">
             <h4 className="text-xs uppercase font-bold tracking-widest text-slate-500 mb-3 flex items-center gap-1">
               <Monitor className="h-3.5 w-3.5 text-slate-500" />
-              <span>Presence Tracking (Watchdog)</span>
+              <span>Viewer Status & Presence</span>
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Object.entries(usersList).map(([sid, uProfile]) => {
@@ -1427,6 +1472,21 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               </div>
             )}
           </div>
+
+          {/* Scrollable Room Footer */}
+          <footer className="w-full max-w-5xl mt-12 pb-4 border-t border-slate-900 bg-transparent text-center text-[10px] text-slate-500 font-semibold uppercase tracking-wider pt-6">
+            <span>
+              &copy; {new Date().getFullYear()} Movie Dekhba &bull; All Rights Reserved &bull; Developed by{' '}
+              <a 
+                href="https://github.com/reza-05" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-indigo-400 hover:text-indigo-300 transition-colors hover:underline normal-case font-bold"
+              >
+                reza-05
+              </a>
+            </span>
+          </footer>
         </div>
 
         {/* Collapsible Chat */}
@@ -1440,8 +1500,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               <button 
                 onClick={() => setChatOpen(false)}
                 className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white"
+                title="Minimize Chat"
               >
-                <X className="h-4 w-4" />
+                <ChevronRight className="h-4 w-4" />
               </button>
             </div>
 
