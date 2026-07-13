@@ -151,39 +151,19 @@ function App() {
   );
 
   // Set up staggered background scroll lists
-  // Pre-shuffled sequences to ensure maximum diversity across scrolling columns without adjacent duplicates
-  const col1 = [
-    MOVIES_WALL[0], MOVIES_WALL[5], MOVIES_WALL[10], MOVIES_WALL[15],
-    MOVIES_WALL[1], MOVIES_WALL[6], MOVIES_WALL[11], MOVIES_WALL[16],
-    MOVIES_WALL[2], MOVIES_WALL[7], MOVIES_WALL[12], MOVIES_WALL[17],
-    MOVIES_WALL[3], MOVIES_WALL[8], MOVIES_WALL[13], MOVIES_WALL[18],
-    MOVIES_WALL[4], MOVIES_WALL[9], MOVIES_WALL[14], MOVIES_WALL[19],
-    MOVIES_WALL[0], MOVIES_WALL[5], MOVIES_WALL[10], MOVIES_WALL[15]
-  ];
-  const col2 = [
-    MOVIES_WALL[19], MOVIES_WALL[14], MOVIES_WALL[9], MOVIES_WALL[4],
-    MOVIES_WALL[18], MOVIES_WALL[13], MOVIES_WALL[8], MOVIES_WALL[3],
-    MOVIES_WALL[17], MOVIES_WALL[12], MOVIES_WALL[7], MOVIES_WALL[2],
-    MOVIES_WALL[16], MOVIES_WALL[11], MOVIES_WALL[6], MOVIES_WALL[1],
-    MOVIES_WALL[15], MOVIES_WALL[10], MOVIES_WALL[5], MOVIES_WALL[0],
-    MOVIES_WALL[19], MOVIES_WALL[14], MOVIES_WALL[9], MOVIES_WALL[4]
-  ];
-  const col3 = [
-    MOVIES_WALL[3], MOVIES_WALL[8], MOVIES_WALL[13], MOVIES_WALL[18],
-    MOVIES_WALL[4], MOVIES_WALL[9], MOVIES_WALL[14], MOVIES_WALL[19],
-    MOVIES_WALL[0], MOVIES_WALL[5], MOVIES_WALL[10], MOVIES_WALL[15],
-    MOVIES_WALL[1], MOVIES_WALL[6], MOVIES_WALL[11], MOVIES_WALL[16],
-    MOVIES_WALL[2], MOVIES_WALL[7], MOVIES_WALL[12], MOVIES_WALL[17],
-    MOVIES_WALL[3], MOVIES_WALL[8], MOVIES_WALL[13], MOVIES_WALL[18]
-  ];
-  const col4 = [
-    MOVIES_WALL[16], MOVIES_WALL[11], MOVIES_WALL[6], MOVIES_WALL[1],
-    MOVIES_WALL[15], MOVIES_WALL[10], MOVIES_WALL[5], MOVIES_WALL[0],
-    MOVIES_WALL[19], MOVIES_WALL[14], MOVIES_WALL[9], MOVIES_WALL[4],
-    MOVIES_WALL[18], MOVIES_WALL[13], MOVIES_WALL[8], MOVIES_WALL[3],
-    MOVIES_WALL[17], MOVIES_WALL[12], MOVIES_WALL[7], MOVIES_WALL[2],
-    MOVIES_WALL[16], MOVIES_WALL[11], MOVIES_WALL[6], MOVIES_WALL[1]
-  ];
+  // Base randomized sequence of all 20 posters to avoid adjacent duplicate alignments
+  const baseSeq = [0, 11, 4, 15, 8, 19, 12, 3, 16, 7, 2, 13, 6, 17, 10, 1, 14, 5, 18, 9];
+
+  // Generate columns shifted by mathematical offsets to guarantee zero horizontal duplicate alignments
+  const generateCol = (shift) => {
+    const sequence = baseSeq.map(idx => MOVIES_WALL[(idx + shift) % 20]);
+    return [...sequence, ...sequence, ...sequence];
+  };
+
+  const col1 = generateCol(0);
+  const col2 = generateCol(5);
+  const col3 = generateCol(10);
+  const col4 = generateCol(15);
 
   if (activeRoomCode) {
     return (
