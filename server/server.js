@@ -1,0 +1,229 @@
+import express from 'express';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: '*', // Allow all origins for the MVP
+    methods: ['GET', 'POST'],
+  },
+});
+
+// In-memory room store
+// rooms[roomCode] = {
+//   code: string,
+//   videoState: { playing: false, currentTime: 0, lastUpdated: Date.now() },
+//   users: { [socketId]: { name, status: 'Active' | 'Away' | 'Offline' } }
+// }
+const rooms = new Map();
+
+// Helper to generate a random 6-character room code
+function generateRoomCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+io.on('connection', (socket) => {
+  console.log(`User connected: ${socket.id}`);
+  let currentRoomCode = null;
+  let userProfile = null;
+
+  // Handle room creation
+  socket.on('create-room', ({ name }) => {
+    let roomCode = generateRoomCode();
+    // Ensure uniqueness
+    while (rooms.has(roomCode)) {
+      roomCode = generateRoomCode();
+    }
+
+    userProfile = { name, status: 'Active' };
+    const roomData = {
+      code: roomCode,
+      videoState: { playing: false, currentTime: 0, lastUpdated: Date.now() },
+      users: {
+        [socket.id]: userProfile,
+      },
+    };
+
+    rooms.set(roomCode, roomData);
+    currentRoomCode = roomCode;
+
+    socket.join(roomCode);
+    console.log(`Room created: ${roomCode} by ${name}`);
+
+    // Acknowledge creation
+    socket.emit('room-created', { roomCode, users: roomData.users });
+  });
+
+  // Handle room joining
+  socket.on('join-room', ({ roomCode, name }) => {
+    const code = roomCode.trim().toUpperCase();
+    if (!rooms.has(code)) {
+      socket.emit('join-error', 'Room not found.');
+      return;
+    }
+
+    const room = rooms.get(code);
+    const numUsers = Object.keys(room.users).length;
+
+    // Limit to 2 users for the MVP
+    if (numUsers >= 2) {
+      socket.emit('join-error', 'Room is full (max 2 users).');
+      return;
+    }
+
+    userProfile = { name, status: 'Active' };
+    room.users[socket.id] = userProfile;
+    currentRoomCode = code;
+
+    socket.join(code);
+    console.log(`User ${name} joined room: ${code}`);
+
+    // Notify the room about the new user and state
+    io.to(code).emit('room-updated', {
+      roomCode: code,
+      users: room.users,
+      videoState: room.videoState,
+    });
+  });
+
+  // Handle play event
+  socket.on('player-play', ({ currentTime }) => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
+    const room = rooms.get(currentRoomCode);
+
+    room.videoState.playing = true;
+    room.videoState.currentTime = currentTime;
+    room.videoState.lastUpdated = Date.now();
+
+    // Broadcast to other client in the room
+    socket.to(currentRoomCode).emit('player-play', { currentTime });
+    console.log(`[${currentRoomCode}] Play at ${currentTime} by ${userProfile?.name}`);
+  });
+
+  // Handle pause event
+  socket.on('player-pause', ({ currentTime }) => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
+    const room = rooms.get(currentRoomCode);
+
+    room.videoState.playing = false;
+    room.videoState.currentTime = currentTime;
+    room.videoState.lastUpdated = Date.now();
+
+    // Broadcast to other client in the room
+    socket.to(currentRoomCode).emit('player-pause', { currentTime });
+    console.log(`[${currentRoomCode}] Pause at ${currentTime} by ${userProfile?.name}`);
+  });
+
+  // Handle seek event
+  socket.on('player-seek', ({ currentTime }) => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
+    const room = rooms.get(currentRoomCode);
+
+    room.videoState.currentTime = currentTime;
+    room.videoState.lastUpdated = Date.now();
+
+    // Broadcast to other client in the room
+    socket.to(currentRoomCode).emit('player-seek', { currentTime });
+    console.log(`[${currentRoomCode}] Seek to ${currentTime} by ${userProfile?.name}`);
+  });
+
+  // Handle chat message
+  socket.on('chat-message', (messageText) => {
+    if (!currentRoomCode || !userProfile) return;
+
+    const message = {
+      id: Math.random().toString(36).substr(2, 9),
+      sender: userProfile.name,
+      text: messageText,
+      timestamp: Date.now(),
+    };
+
+    io.to(currentRoomCode).emit('chat-message', message);
+    console.log(`[${currentRoomCode}] Message from ${userProfile.name}: ${messageText}`);
+  });
+
+  // Handle presence/visibility updates (Active/Away)
+  socket.on('presence-change', ({ status }) => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode) || !userProfile) return;
+    
+    const room = rooms.get(currentRoomCode);
+    if (!room.users[socket.id]) return;
+
+    userProfile.status = status;
+    room.users[socket.id].status = status;
+
+    console.log(`[${currentRoomCode}] User ${userProfile.name} is now ${status}`);
+
+    // Presence rules: If someone goes "Away", pause the movie for the room
+    if (status === 'Away' && room.videoState.playing) {
+      room.videoState.playing = false;
+      room.videoState.lastUpdated = Date.now();
+      // Pause everyone in the room
+      io.to(currentRoomCode).emit('player-pause', { currentTime: room.videoState.currentTime });
+      console.log(`[${currentRoomCode}] Paused movie because user went Away`);
+    }
+
+    // Broadcast status change to everyone in the room
+    io.to(currentRoomCode).emit('room-updated', {
+      roomCode: currentRoomCode,
+      users: room.users,
+      videoState: room.videoState,
+    });
+  });
+
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${socket.id}`);
+    if (currentRoomCode && rooms.has(currentRoomCode)) {
+      const room = rooms.get(currentRoomCode);
+      
+      // Update status to Offline instead of immediate delete to allow recovery/presence listing
+      if (room.users[socket.id]) {
+        const disconnectedUser = room.users[socket.id];
+        disconnectedUser.status = 'Offline';
+        
+        console.log(`[${currentRoomCode}] User ${disconnectedUser.name} went Offline`);
+
+        // If they were playing, pause the video
+        if (room.videoState.playing) {
+          room.videoState.playing = false;
+          room.videoState.lastUpdated = Date.now();
+          io.to(currentRoomCode).emit('player-pause', { currentTime: room.videoState.currentTime });
+        }
+
+        // Check if there's any active/away user left. If everyone is offline/gone, clean up
+        const anyOnline = Object.values(room.users).some(u => u.status !== 'Offline');
+        if (!anyOnline) {
+          rooms.delete(currentRoomCode);
+          console.log(`Room ${currentRoomCode} deleted and expired (all users disconnected).`);
+        } else {
+          // Send update that user went offline
+          io.to(currentRoomCode).emit('room-updated', {
+            roomCode: currentRoomCode,
+            users: room.users,
+            videoState: room.videoState,
+          });
+        }
+      }
+    }
+  });
+});
+
+const PORT = process.env.PORT || 5001;
+server.listen(PORT, () => {
+  console.log(`Movie Dekhba server running on port ${PORT}`);
+});
