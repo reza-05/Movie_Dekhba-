@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { 
   Play, Pause, Volume2, Users, Send, Video, 
-  ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles
+  ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles,
+  RotateCcw, RotateCw, Maximize2, Minimize2
 } from 'lucide-react';
 
 function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
@@ -39,6 +40,15 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   const [youtubeInput, setYoutubeInput] = useState('');
   const youtubePlayerRef = useRef(null);
   const isRespondingToSocket = useRef(false);
+
+  // Custom Player Controls State
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  const initialVideoState = useRef(null);
 
   // References
   const socket = useRef(null);
@@ -80,21 +90,24 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       setIsHost(true);
     });
 
-    socket.current.on('room-updated', ({ roomCode: code, users, videoState, fileName, fileSize }) => {
+    socket.current.on('room-updated', ({ roomCode: code, users, videoState, fileName, fileSize, youtubeUrl: sharedYtUrl }) => {
       setRoomCode(code);
       setUsersList(users);
       
-      // Guest side: If Host has already chosen a file, start downloading it!
-      if (initialRoomCode !== 'CREATE' && fileName && fileSize && !transferActive.current && !videoSrcRef.current) {
-        setVideoName(fileName);
-        startFileTransferDownload(fileName, fileSize);
+      // Store initial videoState for late-joining Guest sync
+      if (videoState) {
+        initialVideoState.current = videoState;
       }
       
-      // Handle page sync when first joining an active room
-      if (videoRef.current && videoState) {
-        if (Math.abs(videoRef.current.currentTime - videoState.currentTime) > 1.5) {
-          isSyncing.current = true;
-          videoRef.current.currentTime = videoState.currentTime;
+      // Guest side: If Host has already chosen a file or YouTube stream, start it!
+      if (initialRoomCode !== 'CREATE' && fileName && !videoSrcRef.current) {
+        setVideoName(fileName);
+        if (sharedYtUrl) {
+          setYoutubeUrl(sharedYtUrl);
+          updateVideoSrc('YOUTUBE');
+          transferActive.current = false;
+        } else if (fileSize && !transferActive.current) {
+          startFileTransferDownload(fileName, fileSize);
         }
       }
     });
@@ -172,25 +185,34 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
     // Playback sync listeners
     socket.current.on('player-play', ({ currentTime }) => {
+      setIsPlaying(true);
+      if (currentTime !== undefined) {
+        setCurrentTime(currentTime);
+      }
       if (youtubePlayerRef.current) {
         isRespondingToSocket.current = true;
         try {
-          if (Math.abs(youtubePlayerRef.current.getCurrentTime() - currentTime) > 1.2) {
+          if (Math.abs(youtubePlayerRef.current.getCurrentTime() - currentTime) > 1.5) {
             youtubePlayerRef.current.seekTo(currentTime, true);
           }
           youtubePlayerRef.current.playVideo();
         } catch (e) {}
-        setTimeout(() => { isRespondingToSocket.current = false; }, 200);
+        setTimeout(() => { isRespondingToSocket.current = false; }, 300);
       } else if (videoRef.current) {
         isSyncing.current = true;
         if (Math.abs(videoRef.current.currentTime - currentTime) > 0.8) {
           videoRef.current.currentTime = currentTime;
         }
         videoRef.current.play().catch(err => console.warn(err));
+        setTimeout(() => { isSyncing.current = false; }, 100);
       }
     });
 
     socket.current.on('player-pause', ({ currentTime }) => {
+      setIsPlaying(false);
+      if (currentTime !== undefined) {
+        setCurrentTime(currentTime);
+      }
       if (youtubePlayerRef.current) {
         isRespondingToSocket.current = true;
         try {
@@ -199,26 +221,31 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
             youtubePlayerRef.current.seekTo(currentTime, true);
           }
         } catch (e) {}
-        setTimeout(() => { isRespondingToSocket.current = false; }, 200);
+        setTimeout(() => { isRespondingToSocket.current = false; }, 300);
       } else if (videoRef.current) {
         isSyncing.current = true;
         videoRef.current.pause();
         if (currentTime !== undefined) {
           videoRef.current.currentTime = currentTime;
         }
+        setTimeout(() => { isSyncing.current = false; }, 100);
       }
     });
 
     socket.current.on('player-seek', ({ currentTime }) => {
+      if (currentTime !== undefined) {
+        setCurrentTime(currentTime);
+      }
       if (youtubePlayerRef.current) {
         isRespondingToSocket.current = true;
         try {
           youtubePlayerRef.current.seekTo(currentTime, true);
         } catch (e) {}
-        setTimeout(() => { isRespondingToSocket.current = false; }, 200);
+        setTimeout(() => { isRespondingToSocket.current = false; }, 300);
       } else if (videoRef.current) {
         isSyncing.current = true;
         videoRef.current.currentTime = currentTime;
+        setTimeout(() => { isSyncing.current = false; }, 100);
       }
     });
 
@@ -313,18 +340,35 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
           playerVars: {
             rel: 0,
             showinfo: 0,
-            controls: 1,
+            controls: 0, // Disable native YouTube control overlay completely
             autoplay: 1,
+            disablekb: 1, // Prevent keyboard shortcuts interfering
             origin: window.location.origin
           },
           events: {
+            onReady: (event) => {
+              youtubePlayerRef.current = event.target;
+              // Sync initial time if Guest joins an ongoing playback room
+              if (initialVideoState.current && initialRoomCode !== 'CREATE') {
+                isRespondingToSocket.current = true;
+                youtubePlayerRef.current.seekTo(initialVideoState.current.currentTime, true);
+                if (initialVideoState.current.playing) {
+                  youtubePlayerRef.current.playVideo();
+                } else {
+                  youtubePlayerRef.current.pauseVideo();
+                }
+                setTimeout(() => { isRespondingToSocket.current = false; }, 400);
+              }
+            },
             onStateChange: (event) => {
               if (isRespondingToSocket.current) return;
               
               const currentTime = event.target.getCurrentTime();
               if (event.data === window.YT.PlayerState.PLAYING) {
+                setIsPlaying(true);
                 socket.current.emit('player-play', { currentTime });
               } else if (event.data === window.YT.PlayerState.PAUSED) {
+                setIsPlaying(false);
                 socket.current.emit('player-pause', { currentTime });
               }
             }
@@ -381,6 +425,145 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
         } catch (e) {}
         youtubePlayerRef.current = null;
       }
+    };
+  }, [youtubeUrl]);
+
+  // Custom Controls Helpers
+  const formatTime = (seconds) => {
+    if (isNaN(seconds) || seconds === null) return '0:00';
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    const paddedSecs = secs < 10 ? `0${secs}` : secs;
+    if (hrs > 0) {
+      const paddedMins = mins < 10 ? `0${mins}` : mins;
+      return `${hrs}:${paddedMins}:${paddedSecs}`;
+    }
+    return `${mins}:${paddedSecs}`;
+  };
+
+  const seekToTime = (time) => {
+    isRespondingToSocket.current = true;
+    if (youtubePlayerRef.current) {
+      try {
+        youtubePlayerRef.current.seekTo(time, true);
+      } catch (err) {}
+    } else if (videoRef.current) {
+      videoRef.current.currentTime = time;
+    }
+    setCurrentTime(time);
+    
+    // Broadcast seek event
+    socket.current.emit('player-seek', { currentTime: time });
+    setTimeout(() => { isRespondingToSocket.current = false; }, 300);
+  };
+
+  const togglePlay = () => {
+    const nextPlayState = !isPlaying;
+    isRespondingToSocket.current = true;
+    
+    if (youtubePlayerRef.current) {
+      try {
+        if (nextPlayState) {
+          youtubePlayerRef.current.playVideo();
+          socket.current.emit('player-play', { currentTime: youtubePlayerRef.current.getCurrentTime() });
+        } else {
+          youtubePlayerRef.current.pauseVideo();
+          socket.current.emit('player-pause', { currentTime: youtubePlayerRef.current.getCurrentTime() });
+        }
+      } catch (err) {}
+    } else if (videoRef.current) {
+      if (nextPlayState) {
+        videoRef.current.play().catch(e => console.warn(e));
+        socket.current.emit('player-play', { currentTime: videoRef.current.currentTime });
+      } else {
+        videoRef.current.pause();
+        socket.current.emit('player-pause', { currentTime: videoRef.current.currentTime });
+      }
+    }
+    
+    setIsPlaying(nextPlayState);
+    setTimeout(() => { isRespondingToSocket.current = false; }, 300);
+  };
+
+  const skipTime = (amount) => {
+    let target = currentTime + amount;
+    if (target < 0) target = 0;
+    if (target > duration) target = duration;
+    seekToTime(target);
+  };
+
+  const handleProgressClick = (e) => {
+    if (!duration || (!videoRef.current && !youtubePlayerRef.current)) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const width = rect.width;
+    const percentage = clickX / width;
+    const targetTime = percentage * duration;
+    
+    seekToTime(targetTime);
+  };
+
+  const handleVolumeChange = (e) => {
+    const val = parseFloat(e.target.value);
+    setVolume(val);
+    if (youtubePlayerRef.current) {
+      try {
+        youtubePlayerRef.current.setVolume(val * 100);
+      } catch (err) {}
+    } else if (videoRef.current) {
+      videoRef.current.volume = val;
+    }
+  };
+
+  const toggleFullscreen = () => {
+    const container = document.getElementById('player-wrapper');
+    if (!container) return;
+    
+    if (!document.fullscreenElement) {
+      container.requestFullscreen().catch(err => console.warn(err));
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(err => console.warn(err));
+      setIsFullscreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  // Polling to keep the custom React controls synchronized with the YT video playback
+  useEffect(() => {
+    let trackingInterval = null;
+    if (youtubeUrl) {
+      trackingInterval = setInterval(() => {
+        if (youtubePlayerRef.current) {
+          try {
+            const state = youtubePlayerRef.current.getPlayerState();
+            if (state === 1) {
+              setIsPlaying(true);
+            } else {
+              setIsPlaying(false);
+            }
+            
+            const curr = youtubePlayerRef.current.getCurrentTime();
+            const dur = youtubePlayerRef.current.getDuration();
+            if (curr !== undefined) setCurrentTime(curr);
+            if (dur !== undefined) setDuration(dur);
+          } catch (e) {}
+        }
+      }, 250);
+    }
+    return () => {
+      if (trackingInterval) clearInterval(trackingInterval);
     };
   }, [youtubeUrl]);
 
@@ -508,6 +691,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
   // 7. Video Control Hooks (Socket Sync Emits)
   const handleLocalPlay = () => {
+    setIsPlaying(true);
     if (isSyncing.current) {
       isSyncing.current = false;
       return;
@@ -518,6 +702,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   };
 
   const handleLocalPause = () => {
+    setIsPlaying(false);
     if (isSyncing.current) {
       isSyncing.current = false;
       return;
@@ -734,24 +919,116 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               </span>
             </div>
           ) : (
-            /* Video Player View (HTML5 or YouTube) */
+            /* Video Player View (HTML5 or YouTube with Custom Controls Overlay) */
             <div className="w-full max-w-5xl flex flex-col gap-4">
-              <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800 group">
+              <div 
+                id="player-wrapper" 
+                className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800 group select-none"
+              >
                 {youtubeUrl ? (
-                  <div className="w-full h-full">
-                    <div id="yt-player" className="w-full h-full pointer-events-auto"></div>
+                  <div className="w-full h-full pointer-events-none">
+                    <div id="yt-player" className="w-full h-full"></div>
                   </div>
                 ) : (
                   <video
                     ref={videoRef}
                     src={videoSrc}
-                    className="w-full h-full object-contain"
-                    controls
+                    className="w-full h-full object-contain cursor-pointer"
+                    onClick={togglePlay}
                     onPlay={handleLocalPlay}
                     onPause={handleLocalPause}
                     onSeeked={handleLocalSeeked}
+                    onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
+                    onDurationChange={(e) => setDuration(e.target.duration)}
                   />
                 )}
+
+                {/* Custom Overlay Controls - Visible on Hover or when Paused */}
+                <div className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent flex flex-col gap-3 transition-opacity duration-300 z-10 ${
+                  !isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                }`}>
+                  
+                  {/* Time Progress Scrubber */}
+                  <div className="flex items-center gap-3 w-full">
+                    <span className="text-[10px] font-mono text-slate-300 min-w-[40px] text-right">
+                      {formatTime(currentTime)}
+                    </span>
+                    <div 
+                      onClick={handleProgressClick}
+                      className="flex-grow h-1.5 bg-slate-800/80 rounded-full cursor-pointer relative hover:h-2 transition-all"
+                    >
+                      <div 
+                        className="bg-indigo-500 h-full rounded-full"
+                        style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                      />
+                      <div 
+                        className="absolute h-3 w-3 bg-white border border-indigo-600 rounded-full -top-[3px] shadow hover:scale-110 transition-transform"
+                        style={{ left: `calc(${duration > 0 ? (currentTime / duration) * 100 : 0}% - 6px)` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-mono text-slate-300 min-w-[40px]">
+                      {formatTime(duration)}
+                    </span>
+                  </div>
+
+                  {/* Control Buttons */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      {/* Rewind 10s */}
+                      <button 
+                        onClick={() => skipTime(-10)} 
+                        className="p-1 rounded-md hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                        title="Rewind 10s"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                      
+                      {/* Play/Pause */}
+                      <button 
+                        onClick={togglePlay} 
+                        className="p-2 rounded-full bg-white text-black hover:scale-105 active:scale-95 transition-all"
+                        title={isPlaying ? "Pause" : "Play"}
+                      >
+                        {isPlaying ? <Pause className="h-4 w-4 fill-current" /> : <Play className="h-4 w-4 fill-current pl-0.5" />}
+                      </button>
+
+                      {/* Fast Forward 10s */}
+                      <button 
+                        onClick={() => skipTime(10)} 
+                        className="p-1 rounded-md hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                        title="Fast Forward 10s"
+                      >
+                        <RotateCw className="h-4 w-4" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                      {/* Volume Control */}
+                      <div className="flex items-center gap-2">
+                        <Volume2 className="h-4 w-4 text-slate-400" />
+                        <input 
+                          type="range" 
+                          min={0} 
+                          max={1} 
+                          step={0.05} 
+                          value={volume}
+                          onChange={handleVolumeChange}
+                          className="w-16 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+                        />
+                      </div>
+
+                      {/* Fullscreen */}
+                      <button 
+                        onClick={toggleFullscreen} 
+                        className="p-1 rounded-md hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                        title="Toggle Fullscreen"
+                      >
+                        {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                </div>
               </div>
 
               <div className="flex items-center justify-between px-2 text-xs">

@@ -134,21 +134,23 @@ io.on('connection', (socket) => {
       magnetURI: room.magnetURI,
       fileName: room.fileName,
       fileSize: room.fileSize,
+      youtubeUrl: room.youtubeUrl,
     });
   });
 
   // Handle sharing of the torrent magnet URI
-  socket.on('share-torrent', ({ magnetURI, fileName, fileSize }) => {
+  socket.on('share-torrent', ({ magnetURI, fileName, fileSize, youtubeUrl }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
 
     room.magnetURI = magnetURI;
     room.fileName = fileName;
     room.fileSize = fileSize;
+    room.youtubeUrl = youtubeUrl;
     
     // Broadcast magnet to other users in the room
-    socket.to(currentRoomCode).emit('share-torrent', { magnetURI, fileName, fileSize });
-    console.log(`[${currentRoomCode}] Shared Torrent Magnet: ${magnetURI}`);
+    socket.to(currentRoomCode).emit('share-torrent', { magnetURI, fileName, fileSize, youtubeUrl });
+    console.log(`[${currentRoomCode}] Shared Torrent Magnet / YouTube: ${youtubeUrl || magnetURI}`);
   });
 
   // Socket streaming fallback events (for localhost loopback / strict NAT environments)
