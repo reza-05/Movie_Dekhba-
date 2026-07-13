@@ -432,7 +432,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
             rel: 0,
             showinfo: 0,
             controls: 0, // Disable native YouTube control overlay completely
-            autoplay: 1,
+            autoplay: 0,
             disablekb: 1, // Prevent keyboard shortcuts interfering
             cc_load_policy: 0, // Disable subtitles/captions by default on load
             origin: window.location.origin
@@ -441,12 +441,27 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
             onReady: (event) => {
               youtubePlayerRef.current = event.target;
               
-              // If we are guest, notify Host that YouTube player is fully loaded & ready
+              const isAlone = Object.keys(usersList).length < 2;
+
+              // If there is a Guest in the room, pause the video immediately on ready load
+              if (!isAlone || initialRoomCode !== 'CREATE') {
+                try {
+                  event.target.pauseVideo();
+                } catch (err) {}
+              }
+
+              // Guest side: Notify Host that YouTube player is fully loaded & ready
               if (initialRoomCode !== 'CREATE') {
                 socket.current.emit('player-ready');
               } else {
-                setIsGuestReady(true);
-                setGuestProgress(100);
+                // Host side: If alone, ready is true. If guest is here, wait for guest
+                if (isAlone) {
+                  setIsGuestReady(true);
+                  setGuestProgress(100);
+                } else {
+                  setIsGuestReady(false);
+                  setGuestProgress(0);
+                }
               }
 
               // Sync initial time if Guest joins an ongoing playback room
