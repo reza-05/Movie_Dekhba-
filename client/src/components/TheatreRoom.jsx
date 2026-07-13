@@ -42,7 +42,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   
   // File Transfer References
   const fileRef = useRef(null);
-  const receivedChunks = useRef([]);
+  const receivedChunksMap = useRef({});
   const lastChunkTime = useRef(Date.now());
   const transferActive = useRef(false);
   const onAckChunk = useRef(null);
@@ -120,7 +120,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     socket.current.on('file-stream-chunk', ({ chunk, offset }) => {
       if (isHost) return; // Only guest receives chunks
       
-      receivedChunks.current.push(chunk);
+      receivedChunksMap.current[offset] = chunk;
       guestReceivedBytes.current += chunk.byteLength;
       
       // Acknowledge chunk receipt immediately with progress offset to slide the Host's window
@@ -143,7 +143,11 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       console.log('File transfer complete. Compiling blob...');
       setBufferStatus('Compiling video file...');
 
-      const blob = new Blob(receivedChunks.current, { type: 'video/mp4' });
+      // Sort chunks by their offset to guarantee correct sequential assembly
+      const sortedOffsets = Object.keys(receivedChunksMap.current).map(Number).sort((a, b) => a - b);
+      const sortedChunks = sortedOffsets.map(off => receivedChunksMap.current[off]);
+
+      const blob = new Blob(sortedChunks, { type: 'video/mp4' });
       const url = URL.createObjectURL(blob);
       
       updateVideoSrc(url);
@@ -245,7 +249,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     transferActive.current = true;
     fileSizeRef.current = size;
     guestReceivedBytes.current = 0;
-    receivedChunks.current = [];
+    receivedChunksMap.current = {};
     lastChunkTime.current = Date.now();
     setTransferProgress(0);
 
