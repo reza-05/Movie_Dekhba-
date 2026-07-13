@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { 
   Play, Pause, Volume2, Users, Send, Video, 
-  ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download
+  ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles
 } from 'lucide-react';
 
 function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
@@ -33,6 +33,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
   // Copy code feedback state
   const [copied, setCopied] = useState(false);
+  const [showReadyModal, setShowReadyModal] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
   // References
   const socket = useRef(null);
@@ -153,6 +155,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       updateVideoSrc(url);
       setBufferStatus('Playback is ready!');
       transferActive.current = false;
+      
+      // Trigger the premium Watch Now popup notification
+      setShowReadyModal(true);
     });
 
     // Playback sync listeners
@@ -224,15 +229,15 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   const fileSizeRef = useRef(0);
 
   // 4. Host File Selection & Transfer Trigger
-  const handleHostFileChange = (e) => {
-    const file = e.target.files[0];
+  // 4. Host File Handling (Drag & Drop + Traditional Input)
+  const handleHostFileSelection = (file) => {
     if (file) {
       setVideoName(file.name);
       fileRef.current = file;
       
       // Share file info with Guest via server
       socket.current.emit('share-torrent', {
-        magnetURI: '', // Leave magnet empty to trigger fallback
+        magnetURI: '',
         fileName: file.name,
         fileSize: file.size
       });
@@ -241,6 +246,30 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       const url = URL.createObjectURL(file);
       updateVideoSrc(url);
       setBufferStatus('Hosting session active. Playback is local.');
+    }
+  };
+
+  const handleHostFileChange = (e) => {
+    const file = e.target.files[0];
+    handleHostFileSelection(file);
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleHostFileSelection(e.dataTransfer.files[0]);
     }
   };
 
@@ -304,6 +333,12 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     // Callback invoked when Guest acknowledges receiving up to 'guestOffset' bytes
     onAckChunk.current = (guestOffset) => {
       ackedOffset.current = guestOffset;
+      
+      // Calculate progress on Host side based on Guest's acknowledged bytes
+      const progress = Math.min(100, Math.round((guestOffset / file.size) * 100));
+      setTransferProgress(progress);
+      setBufferStatus(`Transferring movie... (Progress: ${progress}%)`);
+
       sendNext(); // Slide window and resume sending if paused
     };
 
@@ -371,7 +406,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
           
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold tracking-tight text-white">Movie Lounge</h2>
+              <h2 className="text-lg font-bold tracking-tight text-white">Movie Room</h2>
               <div className={`h-2.5 w-2.5 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
             </div>
             {videoName && (
@@ -423,24 +458,46 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
           
           {/* Status Bar */}
           {bufferStatus && (
-            <div className="w-full max-w-5xl mb-4 bg-indigo-950/20 border border-indigo-500/20 px-4 py-2.5 rounded-lg flex items-center gap-2.5 text-xs text-indigo-300">
-              <Download className="h-4 w-4 text-indigo-400 animate-bounce" />
-              <span>{bufferStatus}</span>
+            <div className="w-full max-w-5xl mb-4 bg-indigo-950/20 border border-indigo-500/20 px-4 py-2.5 rounded-lg flex flex-col gap-2 text-xs text-indigo-300">
+              <div className="flex items-center gap-2.5">
+                <Download className="h-4 w-4 text-indigo-400 animate-bounce" />
+                <span>{bufferStatus}</span>
+              </div>
+              {transferProgress > 0 && transferProgress < 100 && (
+                <div className="w-full bg-indigo-950/40 h-1.5 rounded-full overflow-hidden border border-indigo-500/10">
+                  <div 
+                    className="bg-indigo-500 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${transferProgress}%` }}
+                  ></div>
+                </div>
+              )}
             </div>
           )}
 
           {!videoName && isHost ? (
-            /* File Selection Card (Host Only) */
-            <div className="w-full max-w-xl glass-panel p-10 rounded-2xl text-center flex flex-col items-center border border-slate-800 relative group overflow-hidden shadow-2xl">
+            /* File Selection Card (Host Only) with Drag & Drop */
+            <div 
+              onDragEnter={handleDrag}
+              onDragOver={handleDrag}
+              onDragLeave={handleDrag}
+              onDrop={handleDrop}
+              className={`w-full max-w-xl glass-panel p-10 rounded-2xl text-center flex flex-col items-center border relative group overflow-hidden shadow-2xl transition-all duration-200 ${
+                dragActive 
+                  ? 'border-indigo-500 bg-indigo-950/15 scale-[1.01]' 
+                  : 'border-slate-800 bg-gradient-to-b from-[#0b0f19]/80 to-[#05070c]/90'
+              }`}
+            >
               <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600"></div>
               
-              <div className="bg-indigo-600/10 p-6 rounded-full text-indigo-400 mb-6 shadow-inner">
+              <div className={`p-6 rounded-full mb-6 shadow-inner transition-all duration-300 ${
+                dragActive ? 'bg-indigo-500/20 text-indigo-300 scale-110' : 'bg-indigo-600/10 text-indigo-400'
+              }`}>
                 <Video className="h-12 w-12" />
               </div>
               
               <h3 className="text-2xl font-extrabold text-white tracking-tight">Select Movie to Host</h3>
               <p className="text-slate-400 text-sm mt-3 px-6 leading-relaxed">
-                Choose any movie file (.mp4, .mkv, or .webm) from your computer. 
+                Drag and drop your movie file here, or click to choose from your computer. 
                 Your guest will download it directly from you in real-time.
               </p>
 
@@ -664,6 +721,32 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
           </aside>
         )}
       </div>
+
+      {/* Ready Watch Now Modal Notification */}
+      {showReadyModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-6">
+          <div className="w-full max-w-md bg-gradient-to-b from-[#0b0f19] to-[#05070c] border border-white/[0.04] p-8 rounded-3xl shadow-2xl relative text-center">
+            <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 to-violet-600 rounded-t-3xl"></div>
+            <div className="h-14 w-14 rounded-full bg-indigo-500/10 text-indigo-400 flex items-center justify-center mx-auto mb-6">
+              <Sparkles className="h-7 w-7" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">Movie is Ready!</h3>
+            <p className="text-xs text-slate-400 mb-8">The file has been successfully downloaded. You can start watching now.</p>
+            <button
+              onClick={() => {
+                setShowReadyModal(false);
+                if (videoRef.current) {
+                  videoRef.current.play().catch(e => console.warn(e));
+                }
+              }}
+              className="w-full py-3 px-5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 flex items-center justify-center gap-1.5"
+            >
+              <Play className="h-4 w-4 fill-current pl-0.5" />
+              <span>Watch Now</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
