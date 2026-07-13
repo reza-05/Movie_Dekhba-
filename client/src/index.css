@@ -113,9 +113,9 @@ body {
 }
 
 .animate-scroll-up {
-  animation: scrollWallUp 45s linear infinite;
+  animation: scrollWallUp 90s linear infinite;
 }
 
 .animate-scroll-down {
-  animation: scrollWallDown 45s linear infinite;
+  animation: scrollWallDown 90s linear infinite;
 }

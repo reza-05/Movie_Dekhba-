@@ -38,28 +38,45 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// Premium movie wall catalog containing user-requested titles with direct poster images links
+// Premium movie wall catalog containing user-provided posters
 const MOVIES_WALL = [
-  { title: "Kota Factory", type: "Series", rating: "9.0", year: "2019", img: "/posters/kota_factory.jpg" },
-  { title: "Zero Day", type: "Series", rating: "8.2", year: "2024", img: "/posters/zero_day.png" },
-  { title: "Peaky Blinders", type: "Series", rating: "8.8", year: "2013", img: "/posters/peaky_blinders.png" },
-  { title: "Interstellar", type: "Movie", rating: "8.7", year: "2014", img: "/posters/interstellar.png" },
-  { title: "Breaking Bad", type: "Series", rating: "9.5", year: "2008", img: "/posters/breaking_bad.jpg" },
-  { title: "Mirzapur", type: "Series", rating: "8.5", year: "2018", img: "/posters/mirzapur.jpg" },
-  { title: "Better Call Saul", type: "Series", rating: "8.9", year: "2015", img: "/posters/better_call_saul.jpg" },
-  { title: "Weathering With You", type: "Anime", rating: "7.5", year: "2019", img: "/posters/weathering_with_you.jpg" },
-  { title: "Delhi Belly", type: "Movie", rating: "7.6", year: "2011", img: "/posters/delhi_belly.jpg" },
-  { title: "Your Name", type: "Anime", rating: "8.4", year: "2016", img: "/posters/your_name.jpg" },
-  { title: "Death Note", type: "Anime", rating: "9.0", year: "2006", img: "/posters/death_note.png" },
-  { title: "Tiger Zinda Hai", type: "Movie", rating: "6.2", year: "2017", img: "/posters/tiger_zinda_hai.jpg" },
-  { title: "Animal", type: "Movie", rating: "6.1", year: "2023", img: "/posters/animal.jpg" },
-  { title: "Avengers: Endgame", type: "Movie", rating: "8.4", year: "2019", img: "/posters/avengers_endgame.jpg" },
-  { title: "Monster", type: "Anime", rating: "8.7", year: "2004", img: "/posters/monster_anime.jpg" },
-  { title: "Her", type: "Movie", rating: "8.0", year: "2013", img: "/posters/her.jpg" },
-  { title: "Joker", type: "Movie", rating: "8.4", year: "2019", img: "/posters/joker.jpg" },
-  { title: "Doraemon", type: "Anime", rating: "7.8", year: "2012", img: "/posters/doraemon.jpg" },
-  { title: "Suzume", type: "Anime", rating: "7.7", year: "2022", img: "/posters/suzume.jpg" },
-  { title: "Interstellar", type: "Movie", rating: "8.7", year: "2014", img: "/posters/interstellar.png" }
+  { img: "/posters/6dasJ58GGFcC62H9KuukAryltUp.jpg" },
+  { img: "/posters/6nJ0OUYwNR2jaPXlzPAA3WryiZr.jpg" },
+  { img: "/posters/91vIHsL-zjL._AC_UF1000,1000_QL80_.jpg" },
+  { img: "/posters/Acwua30iAaIiNTBac68iVZTyYrH.jpg" },
+  { img: "/posters/AdkFsbEQyJKB6dJgr6VjoFkujOX.jpg" },
+  { img: "/posters/Animal_(2023_film)_poster.jpg" },
+  { img: "/posters/Doraemon-_Nobita_and_the_Island_of_Miracles_movie_poster.jpg" },
+  { img: "/posters/Ip+Man.webp" },
+  { img: "/posters/MV5BMTc5MDE2ODcwNV5BMl5BanBnXkFtZTgwMzI2NzQ2NzM@._V1_FMjpg_UX1000_.jpg" },
+  { img: "/posters/MV5BMjA1Nzk0OTM2OF5BMl5BanBnXkFtZTgwNjU2NjEwMDE@._V1_QL75_UX190_CR0,0,190,281_.jpg" },
+  { img: "/posters/MV5BMmJiYWI4ZjktMzgyZS00MjBiLThmOTYtZWJmOTUzOTFkMTFiXkEyXkFqcGc@._V1_.jpg" },
+  { img: "/posters/MV5BMmMyZjk0MjUtZmEwZi00YmJjLWIyNGQtZDA0NzBjNWJjZjIwXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg" },
+  { img: "/posters/MV5BYTgyZDhmMTEtZDFhNi00MTc4LTg3NjUtYWJlNGE5Mzk2NzMxXkEyXkFqcGc@._V1_QL75_UX190_CR0,2,190,281_.jpg" },
+  { img: "/posters/MV5BYjI0NDQzYmEtNzMwZC00ODA3LTgzZDYtZTk5ODZjY2Y2OTkzXkEyXkFqcGc@._V1_.jpg" },
+  { img: "/posters/MV5BYzU2MWQ5NGQtYmNlMC00ZjJkLWJmODItZDM5MDM3YmUyMWJkXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg" },
+  { img: "/posters/MV5BZGZmOTZjNzUtOTE4OS00OGM3LWJiNGEtZjk4Yzg2M2Q1YzYxXkEyXkFqcGc@._V1_FMjpg_UX1000_.jpg" },
+  { img: "/posters/Tiger_Zinda_Hai_poster.jpg" },
+  { img: "/posters/Your_Name_poster.png" },
+  { img: "/posters/aXBQD515okXQZmYA89ntXMvSJSd.jpg" },
+  { img: "/posters/bJ4Npo2BXaWS5GJGgYcQ8DSORZZ.jpg" },
+  { img: "/posters/cPn71YFDENH0JkWUezlsLyWmLfN.jpg" },
+  { img: "/posters/cWz28oGV3cSajWdziVQbqrYCmnX.jpg" },
+  { img: "/posters/caYipV8vKfj628YKpEk3cHDc2jv.jpg" },
+  { img: "/posters/gXfeDMkEcHoYBvtkbU11g3F81b.jpg" },
+  { img: "/posters/ga1zJ6UejPIfyL8BA22pK6dqsC8.jpg" },
+  { img: "/posters/images (2).jpeg" },
+  { img: "/posters/images (3).jpeg" },
+  { img: "/posters/images (4).jpeg" },
+  { img: "/posters/images (5).jpeg" },
+  { img: "/posters/images (6).jpeg" },
+  { img: "/posters/images (7).jpeg" },
+  { img: "/posters/kOoxkXTYTi4OipM5G97gK9jnYIk.jpg" },
+  { img: "/posters/lQ4n23dZsh8v8f4cTbdhJgQPshH.jpg" },
+  { img: "/posters/oAk3sPcDYiDfsiQv8bPzntv4s8f.jpg" },
+  { img: "/posters/oBYExKI8E3bTzQjPkofhpV2EJon.jpg" },
+  { img: "/posters/odIyR46aAX59dvQ1ON4P53ow1aE (1).jpg" },
+  { img: "/posters/xGFjhFkqpOpFFUkEQjetKS11AWz.jpg" }
 ];
 
 function App() {
@@ -117,53 +134,34 @@ function App() {
   const renderMovieCard = (movie, idx) => (
     <div 
       key={idx}
-      className="w-full aspect-[2/3] bg-slate-950 border border-white/[0.04] rounded-2xl relative shadow-xl overflow-hidden group select-none"
+      className="w-full aspect-[2/3] bg-slate-950 border border-white/[0.05] rounded-xl relative shadow-lg overflow-hidden group select-none transition-transform duration-300 hover:scale-[1.03]"
     >
       <img 
         src={movie.img} 
-        alt={movie.title}
-        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         loading="lazy"
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10" />
-
-      <div className="absolute inset-0 flex flex-col justify-between p-4 z-10">
-        <div className="flex justify-between items-center">
-          <span className={`text-[8px] font-extrabold uppercase px-2 py-0.5 rounded-full text-white/90 border border-white/5 ${
-            movie.type === 'Anime' ? 'bg-indigo-600/60' : movie.type === 'Series' ? 'bg-[#5b21b6]/60' : 'bg-rose-600/60'
-          }`}>
-            {movie.type}
-          </span>
-          <span className="text-[8px] font-bold text-amber-400 bg-black/50 px-1.5 py-0.5 rounded-full backdrop-blur-sm border border-amber-500/10 flex items-center gap-0.5">
-            ⭐ {movie.rating}
-          </span>
-        </div>
-        <div className="text-left">
-          <h4 className="text-xs font-black text-white leading-tight drop-shadow-md truncate max-w-[130px]">
-            {movie.title}
-          </h4>
-          <p className="text-[8px] font-bold text-slate-300 mt-0.5">
-            {movie.year}
-          </p>
-        </div>
-      </div>
     </div>
   );
 
   // Set up staggered background scroll lists
-  // Base randomized sequence of all 20 posters to avoid adjacent duplicate alignments
-  const baseSeq = [0, 11, 4, 15, 8, 19, 12, 3, 16, 7, 2, 13, 6, 17, 10, 1, 14, 5, 18, 9];
+  // Base randomized sequence of all 37 posters to avoid adjacent duplicate alignments
+  const baseSeq = [
+    0, 18, 36, 9, 27, 5, 23, 14, 32, 1, 19, 10, 28, 6, 24, 15, 33, 2, 20, 11, 29, 7, 25, 16, 34, 3, 21, 12, 30, 8, 26, 17, 35, 4, 22, 13, 31
+  ];
 
   // Generate columns shifted by mathematical offsets to guarantee zero horizontal duplicate alignments
   const generateCol = (shift) => {
-    const sequence = baseSeq.map(idx => MOVIES_WALL[(idx + shift) % 20]);
+    const sequence = baseSeq.map(idx => MOVIES_WALL[(idx + shift) % 37]);
     return [...sequence, ...sequence, ...sequence];
   };
 
   const col1 = generateCol(0);
-  const col2 = generateCol(5);
-  const col3 = generateCol(10);
-  const col4 = generateCol(15);
+  const col2 = generateCol(7);
+  const col3 = generateCol(14);
+  const col4 = generateCol(21);
+  const col5 = generateCol(28);
 
   if (activeRoomCode) {
     return (
@@ -186,20 +184,23 @@ function App() {
       {/* 3D Curved Perspective Movie Grid Background (Fixed and Grid based) */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-20 flex justify-center items-center opacity-[0.65] select-none">
         <div 
-          className="w-[125%] h-[125%] grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5"
+          className="w-[140%] h-[140%] grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
           style={{ transform: 'perspective(1200px) rotateX(24deg) rotateY(-10deg) rotateZ(10deg) skewX(-8deg) scale(1.15)' }}
         >
-          <div className="flex flex-col gap-5 animate-scroll-up">
+          <div className="flex flex-col gap-4 animate-scroll-up">
             {col1.map((movie, idx) => renderMovieCard(movie, idx))}
           </div>
-          <div className="flex flex-col gap-5 animate-scroll-down mt-[-300px]">
+          <div className="flex flex-col gap-4 animate-scroll-down mt-[-300px]">
             {col2.map((movie, idx) => renderMovieCard(movie, idx))}
           </div>
-          <div className="flex flex-col gap-5 animate-scroll-up hidden sm:flex">
+          <div className="flex flex-col gap-4 animate-scroll-up mt-[100px] hidden sm:flex">
             {col3.map((movie, idx) => renderMovieCard(movie, idx))}
           </div>
-          <div className="flex flex-col gap-5 animate-scroll-down mt-[-150px] hidden md:flex">
+          <div className="flex flex-col gap-4 animate-scroll-down mt-[-150px] hidden md:flex">
             {col4.map((movie, idx) => renderMovieCard(movie, idx))}
+          </div>
+          <div className="flex flex-col gap-4 animate-scroll-up mt-[200px] hidden lg:flex">
+            {col5.map((movie, idx) => renderMovieCard(movie, idx))}
           </div>
         </div>
       </div>
