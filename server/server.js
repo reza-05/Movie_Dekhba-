@@ -167,6 +167,11 @@ io.on('connection', (socket) => {
     socket.to(currentRoomCode).emit('file-stream-end');
   });
 
+  socket.on('ack-chunk', () => {
+    if (!currentRoomCode) return;
+    socket.to(currentRoomCode).emit('ack-chunk');
+  });
+
   // Handle play event
   socket.on('player-play', ({ currentTime }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;

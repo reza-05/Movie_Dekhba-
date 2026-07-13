@@ -45,6 +45,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   const receivedChunks = useRef([]);
   const lastChunkTime = useRef(Date.now());
   const transferActive = useRef(false);
+  const onAckChunk = useRef(null);
 
   // 1. Initialize Socket.io Connection & Handshake
   useEffect(() => {
@@ -102,16 +103,22 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       }
     });
 
-    // File Transfer Fallback relays
     socket.current.on('request-file-stream', () => {
       console.log('Host received file transfer request');
       sendFileDataChunks();
+    });
+
+    socket.current.on('ack-chunk', () => {
+      if (onAckChunk.current) {
+        onAckChunk.current();
+      }
     });
 
     socket.current.on('file-stream-chunk', ({ chunk, offset }) => {
       if (isHost) return; // Only guest receives chunks
       
       receivedChunks.current.push(chunk);
+      socket.current.emit('ack-chunk'); // Acknowledge chunk receipt immediately to trigger next one
       
       // Calculate download speed
       const now = Date.now();
@@ -242,7 +249,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     socket.current.emit('request-file-stream');
   };
 
-  // 6. Host Chunks Sender Loop
+  // 6. Host Chunks Sender Loop (Acknowledge-based Flow Control)
   const sendFileDataChunks = () => {
     const file = fileRef.current;
     if (!file) return;
@@ -256,6 +263,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       if (offset >= file.size) {
         socket.current.emit('file-stream-end');
         setBufferStatus('Transfer complete!');
+        onAckChunk.current = null;
         return;
       }
 
@@ -267,14 +275,15 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
           chunk: e.target.result,
           offset: offset
         });
-        
         offset += chunkSize;
-        // 10ms interval to prevent blocking main thread and UI lags
-        setTimeout(sendNext, 10);
       };
       reader.readAsArrayBuffer(slice);
     };
 
+    // Register callback for acknowledgment trigger
+    onAckChunk.current = sendNext;
+
+    // Send first chunk to kickstart the loop
     sendNext();
   };
 
