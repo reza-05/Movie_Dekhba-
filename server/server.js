@@ -4,12 +4,33 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Server as TrackerServer } from 'bittorrent-tracker';
+import { checkR2Status, generateUploadUrl } from './r2Service.js';
 
 dotenv.config();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Cloudflare R2 Upload Endpoints
+app.get('/api/r2-config', (req, res) => {
+  res.json({ configured: checkR2Status() });
+});
+
+app.get('/api/r2-upload-url', async (req, res) => {
+  const { fileName, fileType } = req.query;
+  if (!fileName || !fileType) {
+    return res.status(400).json({ error: 'fileName and fileType query params are required.' });
+  }
+
+  try {
+    const urls = await generateUploadUrl(fileName, fileType);
+    res.json(urls);
+  } catch (error) {
+    console.error('Error generating presigned URL:', error);
+    res.status(500).json({ error: 'Failed to generate presigned upload URL.' });
+  }
+});
 
 const server = createServer(app);
 
@@ -82,6 +103,10 @@ io.on('connection', (socket) => {
         [socket.id]: userProfile,
       },
       magnetURI: null,
+      fileName: null,
+      fileSize: 0,
+      youtubeUrl: null,
+      cloudUrl: null,
     };
 
     rooms.set(roomCode, roomData);
@@ -135,11 +160,12 @@ io.on('connection', (socket) => {
       fileName: room.fileName,
       fileSize: room.fileSize,
       youtubeUrl: room.youtubeUrl,
+      cloudUrl: room.cloudUrl,
     });
   });
 
   // Handle sharing of the torrent magnet URI
-  socket.on('share-torrent', ({ magnetURI, fileName, fileSize, youtubeUrl }) => {
+  socket.on('share-torrent', ({ magnetURI, fileName, fileSize, youtubeUrl, cloudUrl }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
 
@@ -147,10 +173,11 @@ io.on('connection', (socket) => {
     room.fileName = fileName;
     room.fileSize = fileSize;
     room.youtubeUrl = youtubeUrl;
+    room.cloudUrl = cloudUrl;
     
     // Broadcast magnet to other users in the room
-    socket.to(currentRoomCode).emit('share-torrent', { magnetURI, fileName, fileSize, youtubeUrl });
-    console.log(`[${currentRoomCode}] Shared Torrent Magnet / YouTube: ${youtubeUrl || magnetURI}`);
+    socket.to(currentRoomCode).emit('share-torrent', { magnetURI, fileName, fileSize, youtubeUrl, cloudUrl });
+    console.log(`[${currentRoomCode}] Shared Torrent Magnet / YouTube / Cloud: ${youtubeUrl || cloudUrl || magnetURI}`);
   });
 
   // Socket streaming fallback events (for localhost loopback / strict NAT environments)
@@ -277,6 +304,10 @@ io.on('connection', (socket) => {
       users: room.users,
       videoState: room.videoState,
       magnetURI: room.magnetURI,
+      fileName: room.fileName,
+      fileSize: room.fileSize,
+      youtubeUrl: room.youtubeUrl,
+      cloudUrl: room.cloudUrl,
     });
   });
 
@@ -312,6 +343,10 @@ io.on('connection', (socket) => {
             users: room.users,
             videoState: room.videoState,
             magnetURI: room.magnetURI,
+            fileName: room.fileName,
+            fileSize: room.fileSize,
+            youtubeUrl: room.youtubeUrl,
+            cloudUrl: room.cloudUrl,
           });
         }
       }

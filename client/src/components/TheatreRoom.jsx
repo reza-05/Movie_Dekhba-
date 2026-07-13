@@ -58,6 +58,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   const [activeToast, setActiveToast] = useState(null);
   const toastTimeoutRef = useRef(null);
 
+  const [isR2Enabled, setIsR2Enabled] = useState(false);
+  const [isUploadingCloud, setIsUploadingCloud] = useState(false);
+
   const initialVideoState = useRef(null);
 
   // References
@@ -100,7 +103,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       setIsHost(true);
     });
 
-    socket.current.on('room-updated', ({ roomCode: code, users, videoState, fileName, fileSize, youtubeUrl: sharedYtUrl }) => {
+    socket.current.on('room-updated', ({ roomCode: code, users, videoState, fileName, fileSize, youtubeUrl: sharedYtUrl, cloudUrl }) => {
       setRoomCode(code);
       setUsersList(users);
       
@@ -132,6 +135,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
           setYoutubeUrl(sharedYtUrl);
           updateVideoSrc('YOUTUBE');
           transferActive.current = false;
+        } else if (cloudUrl) {
+          setYoutubeUrl('');
+          updateVideoSrc(cloudUrl);
+          socket.current.emit('player-ready');
         } else if (fileSize && !transferActive.current) {
           startFileTransferDownload(fileName, fileSize);
         }
@@ -144,7 +151,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     });
 
     // Listen for Host sharing a movie file metadata
-    socket.current.on('share-torrent', ({ fileName, fileSize, youtubeUrl: sharedYtUrl }) => {
+    socket.current.on('share-torrent', ({ fileName, fileSize, youtubeUrl: sharedYtUrl, cloudUrl }) => {
       if (initialRoomCode !== 'CREATE') {
         // Reset local stream transfer caches
         transferActive.current = false;
@@ -156,6 +163,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
         if (sharedYtUrl) {
           setYoutubeUrl(sharedYtUrl);
           updateVideoSrc('YOUTUBE');
+        } else if (cloudUrl) {
+          setYoutubeUrl('');
+          updateVideoSrc(cloudUrl);
+          socket.current.emit('player-ready');
         } else {
           setYoutubeUrl('');
           startFileTransferDownload(fileName, fileSize);
@@ -336,6 +347,20 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       }
     };
   }, [initialRoomCode, userName, onLeave]);
+
+  // Query Cloudflare R2 configuration status on mount
+  useEffect(() => {
+    fetch(`${backendUrl}/api/r2-config`)
+      .then(res => res.json())
+      .then(data => {
+        setIsR2Enabled(!!data.configured);
+        console.log('[R2 Config] Cloudflare R2 Status:', data.configured ? 'ENABLED' : 'DISABLED (WebRTC Fallback Active)');
+      })
+      .catch(err => {
+        console.error('[R2 Config] Failed to fetch R2 config status:', err);
+        setIsR2Enabled(false);
+      });
+  }, [backendUrl]);
 
   // 2. Presence Watchdog
   useEffect(() => {
@@ -847,6 +872,85 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   // Store file size reference for guest speed tracking
   const fileSizeRef = useRef(0);
 
+  const uploadFileToR2 = async (file) => {
+    try {
+      setIsUploadingCloud(true);
+      setBufferStatus('Requesting secure cloud upload URL...');
+      setGuestProgress(0);
+
+      const urlReq = `${backendUrl}/api/r2-upload-url?fileName=${encodeURIComponent(file.name)}&fileType=${encodeURIComponent(file.type || 'video/mp4')}`;
+      const res = await fetch(urlReq);
+      if (!res.ok) {
+        throw new Error('Failed to fetch presigned R2 upload URL');
+      }
+
+      const { uploadUrl, publicUrl } = await res.json();
+      
+      setBufferStatus('Uploading movie to Cloud (0%)...');
+      
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl, true);
+      xhr.setRequestHeader('Content-Type', file.type || 'video/mp4');
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          setGuestProgress(progress);
+          setBufferStatus(`Uploading movie to Cloud... (${progress}%)`);
+        }
+      };
+
+      xhr.onload = () => {
+        setIsUploadingCloud(false);
+        if (xhr.status === 200) {
+          setBufferStatus('Cloud upload complete! Streaming starts.');
+          setIsGuestReady(true);
+          setGuestProgress(100);
+
+          // Play local file directly (0% download wait for Host)
+          const url = URL.createObjectURL(file);
+          updateVideoSrc(url);
+
+          // Share details including cloudUrl with Guest
+          socket.current.emit('share-torrent', {
+            magnetURI: '',
+            fileName: file.name,
+            fileSize: file.size,
+            cloudUrl: publicUrl
+          });
+        } else {
+          console.warn('R2 upload failed. Falling back to local WebRTC.', xhr.status);
+          fallbackToLocalSeeding(file);
+        }
+      };
+
+      xhr.onerror = () => {
+        setIsUploadingCloud(false);
+        console.warn('R2 upload network error. Falling back to local WebRTC.');
+        fallbackToLocalSeeding(file);
+      };
+
+      xhr.send(file);
+
+    } catch (error) {
+      setIsUploadingCloud(false);
+      console.error('R2 upload initialization error:', error);
+      fallbackToLocalSeeding(file);
+    }
+  };
+
+  const fallbackToLocalSeeding = (file) => {
+    fileRef.current = file;
+    socket.current.emit('share-torrent', {
+      magnetURI: '',
+      fileName: file.name,
+      fileSize: file.size
+    });
+    const url = URL.createObjectURL(file);
+    updateVideoSrc(url);
+    setBufferStatus('Hosting session active (P2P Mode). Playback is local.');
+  };
+
   // 4. Host File Selection & Transfer Trigger
   // 4. Host File Handling (Drag & Drop + Traditional Input)
   const handleHostFileSelection = (file) => {
@@ -857,19 +961,12 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
       setYoutubeUrl(''); // Clear YouTube URL when switching back to local files
       setVideoName(file.name);
-      fileRef.current = file;
       
-      // Share file info with Guest via server
-      socket.current.emit('share-torrent', {
-        magnetURI: '',
-        fileName: file.name,
-        fileSize: file.size
-      });
-
-      // Play local file directly (0% delay and 0% upload cost for Host)
-      const url = URL.createObjectURL(file);
-      updateVideoSrc(url);
-      setBufferStatus('Hosting session active. Playback is local.');
+      if (isR2Enabled) {
+        uploadFileToR2(file);
+      } else {
+        fallbackToLocalSeeding(file);
+      }
     }
   };
 
@@ -1242,6 +1339,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                     <p className="text-slate-400 text-sm mt-2 max-w-sm leading-relaxed">
                       {Object.keys(usersList).length < 2 ? (
                         "Waiting for a guest to join the room code..."
+                      ) : isUploadingCloud ? (
+                        `Uploading movie to Cloud... (${guestProgress}%)`
                       ) : youtubeUrl ? (
                         "Guest is loading the YouTube video player..."
                       ) : (
@@ -1250,7 +1349,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                     </p>
                     
                     {/* Visual Progress Bar for Host */}
-                    {Object.keys(usersList).length >= 2 && !youtubeUrl && (
+                    {Object.keys(usersList).length >= 2 && !youtubeUrl && (guestProgress > 0 || isUploadingCloud) && (
                       <div className="w-64 bg-slate-900 border border-slate-800 h-2 rounded-full mt-5 overflow-hidden relative shadow-inner">
                         <div 
                           className="bg-indigo-500 h-full rounded-full transition-all duration-300 ease-out"

@@ -9,6 +9,8 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1085.0",
+    "@aws-sdk/s3-request-presigner": "^3.1085.0",
     "bittorrent-tracker": "^11.2.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
