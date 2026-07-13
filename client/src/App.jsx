@@ -207,9 +207,9 @@ function App() {
 
       {/* Radial Spotlighting Overlay with Backdrop Blur (Fixed to viewport) */}
       <div 
-        className="fixed inset-0 backdrop-blur-[2px] -z-10 pointer-events-none"
+        className="fixed inset-0 backdrop-blur-[3px] -z-10 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at center, rgba(2, 4, 10, 0.2) 0%, rgba(2, 4, 10, 0.45) 60%, rgba(2, 4, 10, 0.75) 100%)'
+          background: 'radial-gradient(circle at center, rgba(2, 4, 10, 0.55) 0%, rgba(2, 4, 10, 0.3) 65%, rgba(2, 4, 10, 0.15) 100%)'
         }}
       />
 
@@ -231,11 +231,11 @@ function App() {
 
       {/* Main Container */}
       <main className="flex-grow flex items-center justify-center px-4 sm:px-8 py-16 md:py-24 lg:py-32 relative z-10">
-        <div className="w-full max-w-[85rem] px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 xl:gap-24 items-center">
+        <div className="w-full max-w-[85rem] px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 xl:gap-24 items-center transform -translate-y-4 md:-translate-y-8 lg:-translate-y-12">
           
           {/* Left Column: Clean Responsive Typography */}
           <div className="lg:col-span-7 space-y-6 lg:space-y-8 text-center lg:text-left">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tight text-white leading-[1.05]">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-white leading-[1.05]">
               Watch movies<br className="hidden lg:block" />
               together with<br className="hidden lg:block" />
               <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
