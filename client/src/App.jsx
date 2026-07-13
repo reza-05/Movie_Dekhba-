@@ -130,17 +130,16 @@ function App() {
           
           {/* Left Column: Clean Minimal Typography (Removed Mock Player) */}
           <div className="lg:col-span-7 space-y-6 text-left">
-            <h1 className="text-4xl md:text-5xl lg:text-6.5xl font-black tracking-tight text-white leading-[1.08]">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.05]">
               Watch movies<br />
               together with<br />
               <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
-                your friends.
+                your friend.
               </span>
             </h1>
             
-            <p className="text-slate-400 text-sm md:text-base max-w-lg leading-relaxed font-medium">
-              Direct high-speed movie rooms for you and your friends. 
-              Upload files from your local storage and watch them instantly with no size limits or quality loss.
+            <p className="text-slate-400 text-base md:text-lg max-w-xl leading-relaxed font-medium">
+              Direct high-speed movie rooms. Upload files from your local storage and watch together in real-time with no size limits or quality loss.
             </p>
           </div>
 
