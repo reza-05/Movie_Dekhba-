@@ -230,27 +230,27 @@ function App() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-grow flex items-center justify-center px-6 py-12 md:py-24 relative z-10">
-        <div className="w-full max-w-5xl grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+      <main className="flex-grow flex items-center justify-center px-4 sm:px-8 py-16 md:py-24 lg:py-32 relative z-10">
+        <div className="w-full max-w-[85rem] px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 xl:gap-24 items-center">
           
-          {/* Left Column: Clean Minimal Typography */}
-          <div className="lg:col-span-7 space-y-6 text-left">
-            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.05]">
-              Watch movies<br />
-              together with<br />
+          {/* Left Column: Clean Responsive Typography */}
+          <div className="lg:col-span-7 space-y-6 lg:space-y-8 text-center lg:text-left">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black tracking-tight text-white leading-[1.05]">
+              Watch movies<br className="hidden lg:block" />
+              together with<br className="hidden lg:block" />
               <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
                 your friends
               </span>
             </h1>
             
-            <p className="text-slate-400 text-base md:text-lg max-w-xl leading-relaxed font-semibold">
+            <p className="text-slate-400 text-sm sm:text-base md:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed font-semibold">
               Direct high-speed movie rooms for you and your friends. Upload files from your local storage and watch them instantly with no size limits or quality loss.
             </p>
           </div>
 
-          {/* Right Column: Interactive Tabbed Room Access Widget */}
-          <div className="lg:col-span-5 w-full">
-            <div className="glass-panel p-8 rounded-3xl border border-white/[0.04] bg-gradient-to-b from-[#0b0f19]/80 to-[#05070c]/90 shadow-2xl relative transition-all duration-300">
+          {/* Right Column: Interactive Tabbed Room Access Widget (Aligned Right on Desktop) */}
+          <div className="lg:col-span-5 w-full flex justify-center lg:justify-end">
+            <div className="w-full max-w-md glass-panel p-8 rounded-3xl border border-white/[0.04] bg-gradient-to-b from-[#0b0f19]/80 to-[#05070c]/90 shadow-2xl relative transition-all duration-300">
               <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 rounded-t-3xl"></div>
 
               {/* Step Tab Switcher */}
