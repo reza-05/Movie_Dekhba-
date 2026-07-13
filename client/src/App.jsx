@@ -55,7 +55,11 @@ const MOVIES_WALL = [
   { title: "Animal", type: "Movie", rating: "6.1", year: "2023", img: "/posters/poster_extra_3.jpg" },
   { title: "Avengers: Endgame", type: "Movie", rating: "8.4", year: "2019", img: "/posters/avengers_endgame.jpg" },
   { title: "Monster", type: "Anime", rating: "8.7", year: "2004", img: "/posters/monster_anime.jpg" },
-  { title: "Peaky Blinders", type: "Series", rating: "8.8", year: "2013", img: "/posters/peaky_blinders.png" }
+  { title: "Her", type: "Movie", rating: "8.0", year: "2013", img: "/posters/her.jpg" },
+  { title: "Joker", type: "Movie", rating: "8.4", year: "2019", img: "/posters/joker.jpg" },
+  { title: "Doraemon", type: "Anime", rating: "7.8", year: "2012", img: "/posters/doraemon.jpg" },
+  { title: "Suzume", type: "Anime", rating: "7.7", year: "2022", img: "/posters/suzume.jpg" },
+  { title: "Interstellar", type: "Movie", rating: "8.7", year: "2014", img: "/posters/interstellar.png" }
 ];
 
 function App() {
@@ -149,36 +153,36 @@ function App() {
   // Set up staggered background scroll lists
   // Pre-shuffled sequences to ensure maximum diversity across scrolling columns without adjacent duplicates
   const col1 = [
-    MOVIES_WALL[0], MOVIES_WALL[4], MOVIES_WALL[8], MOVIES_WALL[12],
-    MOVIES_WALL[1], MOVIES_WALL[5], MOVIES_WALL[9], MOVIES_WALL[13],
-    MOVIES_WALL[2], MOVIES_WALL[6], MOVIES_WALL[10], MOVIES_WALL[14],
-    MOVIES_WALL[3], MOVIES_WALL[7], MOVIES_WALL[11], MOVIES_WALL[15],
-    MOVIES_WALL[0], MOVIES_WALL[4], MOVIES_WALL[8], MOVIES_WALL[12],
-    MOVIES_WALL[1], MOVIES_WALL[5], MOVIES_WALL[9], MOVIES_WALL[13]
+    MOVIES_WALL[0], MOVIES_WALL[5], MOVIES_WALL[10], MOVIES_WALL[15],
+    MOVIES_WALL[1], MOVIES_WALL[6], MOVIES_WALL[11], MOVIES_WALL[16],
+    MOVIES_WALL[2], MOVIES_WALL[7], MOVIES_WALL[12], MOVIES_WALL[17],
+    MOVIES_WALL[3], MOVIES_WALL[8], MOVIES_WALL[13], MOVIES_WALL[18],
+    MOVIES_WALL[4], MOVIES_WALL[9], MOVIES_WALL[14], MOVIES_WALL[19],
+    MOVIES_WALL[0], MOVIES_WALL[5], MOVIES_WALL[10], MOVIES_WALL[15]
   ];
   const col2 = [
-    MOVIES_WALL[15], MOVIES_WALL[11], MOVIES_WALL[7], MOVIES_WALL[3],
-    MOVIES_WALL[14], MOVIES_WALL[10], MOVIES_WALL[6], MOVIES_WALL[2],
-    MOVIES_WALL[13], MOVIES_WALL[9], MOVIES_WALL[5], MOVIES_WALL[1],
-    MOVIES_WALL[12], MOVIES_WALL[8], MOVIES_WALL[4], MOVIES_WALL[0],
-    MOVIES_WALL[15], MOVIES_WALL[11], MOVIES_WALL[7], MOVIES_WALL[3],
-    MOVIES_WALL[14], MOVIES_WALL[10], MOVIES_WALL[6], MOVIES_WALL[2]
+    MOVIES_WALL[19], MOVIES_WALL[14], MOVIES_WALL[9], MOVIES_WALL[4],
+    MOVIES_WALL[18], MOVIES_WALL[13], MOVIES_WALL[8], MOVIES_WALL[3],
+    MOVIES_WALL[17], MOVIES_WALL[12], MOVIES_WALL[7], MOVIES_WALL[2],
+    MOVIES_WALL[16], MOVIES_WALL[11], MOVIES_WALL[6], MOVIES_WALL[1],
+    MOVIES_WALL[15], MOVIES_WALL[10], MOVIES_WALL[5], MOVIES_WALL[0],
+    MOVIES_WALL[19], MOVIES_WALL[14], MOVIES_WALL[9], MOVIES_WALL[4]
   ];
   const col3 = [
-    MOVIES_WALL[2], MOVIES_WALL[7], MOVIES_WALL[12], MOVIES_WALL[1],
-    MOVIES_WALL[6], MOVIES_WALL[11], MOVIES_WALL[0], MOVIES_WALL[5],
-    MOVIES_WALL[10], MOVIES_WALL[15], MOVIES_WALL[4], MOVIES_WALL[9],
-    MOVIES_WALL[14], MOVIES_WALL[3], MOVIES_WALL[8], MOVIES_WALL[13],
-    MOVIES_WALL[2], MOVIES_WALL[7], MOVIES_WALL[12], MOVIES_WALL[1],
-    MOVIES_WALL[6], MOVIES_WALL[11], MOVIES_WALL[0], MOVIES_WALL[5]
+    MOVIES_WALL[3], MOVIES_WALL[8], MOVIES_WALL[13], MOVIES_WALL[18],
+    MOVIES_WALL[4], MOVIES_WALL[9], MOVIES_WALL[14], MOVIES_WALL[19],
+    MOVIES_WALL[0], MOVIES_WALL[5], MOVIES_WALL[10], MOVIES_WALL[15],
+    MOVIES_WALL[1], MOVIES_WALL[6], MOVIES_WALL[11], MOVIES_WALL[16],
+    MOVIES_WALL[2], MOVIES_WALL[7], MOVIES_WALL[12], MOVIES_WALL[17],
+    MOVIES_WALL[3], MOVIES_WALL[8], MOVIES_WALL[13], MOVIES_WALL[18]
   ];
   const col4 = [
-    MOVIES_WALL[13], MOVIES_WALL[8], MOVIES_WALL[3], MOVIES_WALL[14],
-    MOVIES_WALL[9], MOVIES_WALL[4], MOVIES_WALL[15], MOVIES_WALL[10],
-    MOVIES_WALL[5], MOVIES_WALL[0], MOVIES_WALL[11], MOVIES_WALL[6],
-    MOVIES_WALL[1], MOVIES_WALL[12], MOVIES_WALL[7], MOVIES_WALL[2],
-    MOVIES_WALL[13], MOVIES_WALL[8], MOVIES_WALL[3], MOVIES_WALL[14],
-    MOVIES_WALL[9], MOVIES_WALL[4], MOVIES_WALL[15], MOVIES_WALL[10]
+    MOVIES_WALL[16], MOVIES_WALL[11], MOVIES_WALL[6], MOVIES_WALL[1],
+    MOVIES_WALL[15], MOVIES_WALL[10], MOVIES_WALL[5], MOVIES_WALL[0],
+    MOVIES_WALL[19], MOVIES_WALL[14], MOVIES_WALL[9], MOVIES_WALL[4],
+    MOVIES_WALL[18], MOVIES_WALL[13], MOVIES_WALL[8], MOVIES_WALL[3],
+    MOVIES_WALL[17], MOVIES_WALL[12], MOVIES_WALL[7], MOVIES_WALL[2],
+    MOVIES_WALL[16], MOVIES_WALL[11], MOVIES_WALL[6], MOVIES_WALL[1]
   ];
 
   if (activeRoomCode) {
