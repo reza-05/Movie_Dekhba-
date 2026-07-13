@@ -149,7 +149,7 @@ function App() {
                   value={userName}
                   onChange={(e) => setUserName(e.target.value)}
                   className="w-full py-3 pl-10 pr-4 rounded-lg glass-input text-sm text-slate-100 font-medium"
-                  placeholder="E.g., Soumic"
+                  placeholder="E.g., Alex"
                 />
               </div>
             </div>
@@ -206,7 +206,7 @@ function App() {
 
       {/* Footer Info */}
       <footer className="py-4 border-t border-slate-800 bg-[#070b12] text-center text-xs text-slate-500 flex items-center justify-center gap-2">
-        <span>Movie Dekhba MVP &bull; Created for Soumic</span>
+        <span>Movie Dekhba MVP &bull; Synced Movie Lounge</span>
         <HelpCircle className="h-3.5 w-3.5 text-slate-600 hover:text-slate-400 cursor-pointer" />
       </footer>
     </div>

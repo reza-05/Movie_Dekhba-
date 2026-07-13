@@ -385,8 +385,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       </header>
 
       {/* Main Workspace */}
-      <div className="flex-grow flex relative overflow-hidden">
-        <div className="flex-grow flex flex-col p-6 items-center justify-center overflow-y-auto max-h-[calc(100vh-80px)]">
+      <div className="flex-grow flex flex-col md:flex-row relative overflow-y-auto md:overflow-hidden">
+        <div className="flex-grow w-full flex flex-col p-4 md:p-6 items-center justify-center md:overflow-y-auto md:max-h-[calc(100vh-80px)]">
           
           {/* Status Bar */}
           {bufferStatus && (
@@ -562,7 +562,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
         {/* Collapsible Chat */}
         {chatOpen && (
-          <aside className="w-full md:w-80 lg:w-96 border-l border-slate-800 bg-[#0a101d]/60 backdrop-blur-md flex flex-col shadow-2xl relative z-10">
+          <aside className="w-full md:w-80 lg:w-96 border-t md:border-t-0 md:border-l border-slate-800 bg-[#0a101d]/60 backdrop-blur-md flex flex-col shadow-2xl relative z-10 h-[350px] md:h-auto">
             <div className="px-4 py-3.5 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-indigo-400" />
