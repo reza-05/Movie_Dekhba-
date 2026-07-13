@@ -167,9 +167,9 @@ io.on('connection', (socket) => {
     socket.to(currentRoomCode).emit('file-stream-end');
   });
 
-  socket.on('ack-chunk', () => {
+  socket.on('ack-chunk', (data) => {
     if (!currentRoomCode) return;
-    socket.to(currentRoomCode).emit('ack-chunk');
+    socket.to(currentRoomCode).emit('ack-chunk', data);
   });
 
   // Handle play event

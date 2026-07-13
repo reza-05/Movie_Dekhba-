@@ -46,6 +46,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   const lastChunkTime = useRef(Date.now());
   const transferActive = useRef(false);
   const onAckChunk = useRef(null);
+  const transferOffset = useRef(0);
+  const ackedOffset = useRef(0);
+  const guestReceivedBytes = useRef(0);
 
   // 1. Initialize Socket.io Connection & Handshake
   useEffect(() => {
@@ -108,9 +111,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       sendFileDataChunks();
     });
 
-    socket.current.on('ack-chunk', () => {
+    socket.current.on('ack-chunk', ({ offset }) => {
       if (onAckChunk.current) {
-        onAckChunk.current();
+        onAckChunk.current(offset);
       }
     });
 
@@ -118,15 +121,17 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       if (isHost) return; // Only guest receives chunks
       
       receivedChunks.current.push(chunk);
-      socket.current.emit('ack-chunk'); // Acknowledge chunk receipt immediately to trigger next one
+      guestReceivedBytes.current += chunk.byteLength;
+      
+      // Acknowledge chunk receipt immediately with progress offset to slide the Host's window
+      socket.current.emit('ack-chunk', { offset: guestReceivedBytes.current });
       
       // Calculate download speed
       const now = Date.now();
       const duration = (now - lastChunkTime.current) / 1000;
       lastChunkTime.current = now;
       
-      const fileSize = receivedChunks.current.reduce((acc, c) => acc + c.byteLength, 0);
-      const progress = Math.min(100, Math.round((fileSize / fileSizeRef.current) * 100));
+      const progress = Math.min(100, Math.round((guestReceivedBytes.current / fileSizeRef.current) * 100));
       setTransferProgress(progress);
 
       const speed = duration > 0 ? (chunk.byteLength / 1024 / 1024 / duration).toFixed(1) : '0.0';
@@ -239,6 +244,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   const startFileTransferDownload = (name, size) => {
     transferActive.current = true;
     fileSizeRef.current = size;
+    guestReceivedBytes.current = 0;
     receivedChunks.current = [];
     lastChunkTime.current = Date.now();
     setTransferProgress(0);
@@ -249,41 +255,55 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     socket.current.emit('request-file-stream');
   };
 
-  // 6. Host Chunks Sender Loop (Acknowledge-based Flow Control)
+  // 6. Host Chunks Sender Loop (Sliding Window Flow Control)
   const sendFileDataChunks = () => {
     const file = fileRef.current;
     if (!file) return;
 
     setBufferStatus('Transferring movie to Guest...');
     
-    let offset = 0;
+    transferOffset.current = 0;
+    ackedOffset.current = 0;
     const chunkSize = 256 * 1024; // 256KB chunks for WebSocket stability
+    const windowSize = 6 * 1024 * 1024; // 6MB sliding window size (optimum for ping RTT vs memory buffer)
 
     const sendNext = () => {
-      if (offset >= file.size) {
-        socket.current.emit('file-stream-end');
-        setBufferStatus('Transfer complete!');
-        onAckChunk.current = null;
+      if (transferOffset.current >= file.size) {
         return;
       }
 
-      const slice = file.slice(offset, offset + chunkSize);
-      const reader = new FileReader();
-      
-      reader.onload = (e) => {
-        socket.current.emit('file-stream-chunk', {
-          chunk: e.target.result,
-          offset: offset
-        });
-        offset += chunkSize;
-      };
-      reader.readAsArrayBuffer(slice);
+      // Keep reading and sending chunks as long as we stay within the sliding window
+      while (transferOffset.current - ackedOffset.current < windowSize && transferOffset.current < file.size) {
+        const currentOffset = transferOffset.current;
+        const slice = file.slice(currentOffset, currentOffset + chunkSize);
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+          socket.current.emit('file-stream-chunk', {
+            chunk: e.target.result,
+            offset: currentOffset
+          });
+
+          // Check if this is the final chunk of the file
+          if (currentOffset + chunkSize >= file.size) {
+            socket.current.emit('file-stream-end');
+            setBufferStatus('Transfer complete!');
+            onAckChunk.current = null;
+          }
+        };
+        reader.readAsArrayBuffer(slice);
+        
+        transferOffset.current += chunkSize;
+      }
     };
 
-    // Register callback for acknowledgment trigger
-    onAckChunk.current = sendNext;
+    // Callback invoked when Guest acknowledges receiving up to 'guestOffset' bytes
+    onAckChunk.current = (guestOffset) => {
+      ackedOffset.current = guestOffset;
+      sendNext(); // Slide window and resume sending if paused
+    };
 
-    // Send first chunk to kickstart the loop
+    // Initial fill of the sliding window
     sendNext();
   };
 
