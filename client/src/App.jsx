@@ -162,33 +162,33 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col justify-between text-slate-200 antialiased selection:bg-indigo-500/30 selection:text-indigo-200 relative overflow-x-hidden">
       
-      {/* Solid background color container at bottom of z-stack */}
-      <div className="absolute inset-0 bg-[#02040a] -z-30 pointer-events-none" />
+      {/* Solid background color container at bottom of z-stack (Fixed to viewport) */}
+      <div className="fixed inset-0 bg-[#02040a] -z-30 pointer-events-none" />
 
-      {/* 3D Curved Perspective Movie Grid Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-20 flex justify-center items-center opacity-[0.22] select-none">
+      {/* 3D Curved Perspective Movie Grid Background (Fixed and Grid based) */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none -z-20 flex justify-center items-center opacity-[0.22] select-none">
         <div 
-          className="w-[125%] h-[125%] flex gap-5 justify-center"
+          className="w-[125%] h-[125%] grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5"
           style={{ transform: 'perspective(1200px) rotateX(24deg) rotateY(-10deg) rotateZ(10deg) skewX(-8deg) scale(1.15)' }}
         >
-          <div className="flex-1 flex flex-col gap-5 animate-scroll-up">
+          <div className="flex flex-col gap-5 animate-scroll-up">
             {col1.map((movie, idx) => renderMovieCard(movie, idx))}
           </div>
-          <div className="flex-1 flex flex-col gap-5 animate-scroll-down mt-[-300px]">
+          <div className="flex flex-col gap-5 animate-scroll-down mt-[-300px]">
             {col2.map((movie, idx) => renderMovieCard(movie, idx))}
           </div>
-          <div className="flex-1 flex flex-col gap-5 animate-scroll-up hidden sm:flex">
+          <div className="flex flex-col gap-5 animate-scroll-up hidden sm:flex">
             {col3.map((movie, idx) => renderMovieCard(movie, idx))}
           </div>
-          <div className="flex-1 flex flex-col gap-5 animate-scroll-down mt-[-150px] hidden md:flex">
+          <div className="flex flex-col gap-5 animate-scroll-down mt-[-150px] hidden md:flex">
             {col4.map((movie, idx) => renderMovieCard(movie, idx))}
           </div>
         </div>
       </div>
 
-      {/* Radial Spotlighting Overlay with Backdrop Blur */}
+      {/* Radial Spotlighting Overlay with Backdrop Blur (Fixed to viewport) */}
       <div 
-        className="absolute inset-0 backdrop-blur-[2px] -z-10 pointer-events-none"
+        className="fixed inset-0 backdrop-blur-[2px] -z-10 pointer-events-none"
         style={{
           background: 'radial-gradient(circle at center, rgba(2, 4, 10, 0.4) 0%, rgba(2, 4, 10, 0.85) 60%, rgba(2, 4, 10, 0.98) 100%)'
         }}
