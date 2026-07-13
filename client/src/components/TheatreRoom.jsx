@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import { 
   Play, Pause, Volume2, Users, Send, Video, 
   ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles,
-  RotateCcw, RotateCw, Maximize2, Minimize2
+  RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles
 } from 'lucide-react';
 
 function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
@@ -48,6 +48,13 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   const [volume, setVolume] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const controlsTimeoutRef = useRef(null);
+
+  const [guestProgress, setGuestProgress] = useState(0);
+  const [isGuestReady, setIsGuestReady] = useState(false);
+
   const initialVideoState = useRef(null);
 
   // References
@@ -94,6 +101,22 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       setRoomCode(code);
       setUsersList(users);
       
+      // Host side readiness state management
+      if (initialRoomCode === 'CREATE') {
+        if (Object.keys(users).length < 2) {
+          setIsGuestReady(false);
+          setGuestProgress(0);
+        } else if (fileName) {
+          // Wait for guest if they haven't reported ready yet
+          if (guestProgress < 100) {
+            setIsGuestReady(false);
+          }
+        } else {
+          setIsGuestReady(true);
+          setGuestProgress(100);
+        }
+      }
+      
       // Store initial videoState for late-joining Guest sync
       if (videoState) {
         initialVideoState.current = videoState;
@@ -119,13 +142,19 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
     // Listen for Host sharing a movie file metadata
     socket.current.on('share-torrent', ({ fileName, fileSize, youtubeUrl: sharedYtUrl }) => {
-      if (initialRoomCode !== 'CREATE' && !videoSrcRef.current) {
+      if (initialRoomCode !== 'CREATE') {
+        // Reset local stream transfer caches
+        transferActive.current = false;
+        receivedChunksMap.current = {};
+        guestReceivedBytes.current = 0;
+        setTransferProgress(0);
+        
         setVideoName(fileName);
         if (sharedYtUrl) {
           setYoutubeUrl(sharedYtUrl);
           updateVideoSrc('YOUTUBE');
-          transferActive.current = false;
-        } else if (!transferActive.current) {
+        } else {
+          setYoutubeUrl('');
           startFileTransferDownload(fileName, fileSize);
         }
       }
@@ -158,6 +187,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       
       const progress = Math.min(100, Math.round((guestReceivedBytes.current / fileSizeRef.current) * 100));
       setTransferProgress(progress);
+      socket.current.emit('transfer-progress', { progress });
 
       const speed = duration > 0 ? (chunk.byteLength / 1024 / 1024 / duration).toFixed(1) : '0.0';
       setBufferStatus(`Receiving movie... (Progress: ${progress}%, Speed: ${speed} MB/s)`);
@@ -178,6 +208,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       updateVideoSrc(url);
       setBufferStatus('Playback is ready!');
       transferActive.current = false;
+      
+      // Notify Host that Guest has completed local download and player is ready
+      socket.current.emit('player-ready');
       
       // Trigger the premium Watch Now popup notification
       setShowReadyModal(true);
@@ -253,6 +286,42 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       setMessages((prev) => [...prev, msg]);
     });
 
+    socket.current.on('drift-sync', ({ currentTime }) => {
+      if (isHost) return;
+      
+      if (youtubePlayerRef.current) {
+        const ytTime = youtubePlayerRef.current.getCurrentTime();
+        if (Math.abs(ytTime - currentTime) > 2.0) {
+          console.log('Guest correcting drift (YouTube):', currentTime);
+          isRespondingToSocket.current = true;
+          youtubePlayerRef.current.seekTo(currentTime, true);
+          setTimeout(() => { isRespondingToSocket.current = false; }, 300);
+        }
+      } else if (videoRef.current) {
+        const vidTime = videoRef.current.currentTime;
+        if (Math.abs(vidTime - currentTime) > 1.5) {
+          console.log('Guest correcting drift (HTML5):', currentTime);
+          isSyncing.current = true;
+          videoRef.current.currentTime = currentTime;
+          setTimeout(() => { isSyncing.current = false; }, 200);
+        }
+      }
+    });
+
+    socket.current.on('transfer-progress', ({ progress }) => {
+      setGuestProgress(progress);
+    });
+
+    socket.current.on('player-ready', () => {
+      setIsGuestReady(true);
+      setGuestProgress(100);
+    });
+
+    socket.current.on('guest-reset', () => {
+      setIsGuestReady(false);
+      setGuestProgress(0);
+    });
+
     return () => {
       if (socket.current) {
         socket.current.disconnect();
@@ -305,6 +374,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       return;
     }
 
+    setIsGuestReady(false);
+    setGuestProgress(0);
+    socket.current.emit('guest-reset');
+
     setVideoName('YouTube Video');
     setYoutubeUrl(youtubeInput);
     updateVideoSrc('YOUTUBE');
@@ -343,11 +416,21 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
             controls: 0, // Disable native YouTube control overlay completely
             autoplay: 1,
             disablekb: 1, // Prevent keyboard shortcuts interfering
+            cc_load_policy: 0, // Disable subtitles/captions by default on load
             origin: window.location.origin
           },
           events: {
             onReady: (event) => {
               youtubePlayerRef.current = event.target;
+              
+              // If we are guest, notify Host that YouTube player is fully loaded & ready
+              if (initialRoomCode !== 'CREATE') {
+                socket.current.emit('player-ready');
+              } else {
+                setIsGuestReady(true);
+                setGuestProgress(100);
+              }
+
               // Sync initial time if Guest joins an ongoing playback room
               if (initialVideoState.current && initialRoomCode !== 'CREATE') {
                 isRespondingToSocket.current = true;
@@ -567,6 +650,85 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     };
   }, [youtubeUrl]);
 
+  const toggleSubtitles = () => {
+    const nextState = !subtitlesEnabled;
+    setSubtitlesEnabled(nextState);
+
+    // HTML5 Video track toggle
+    if (videoRef.current && videoRef.current.textTracks) {
+      for (let i = 0; i < videoRef.current.textTracks.length; i++) {
+        videoRef.current.textTracks[i].mode = nextState ? 'showing' : 'hidden';
+      }
+    }
+
+    // YouTube captions toggle
+    if (youtubePlayerRef.current) {
+      try {
+        if (nextState) {
+          youtubePlayerRef.current.loadModule('captions');
+        } else {
+          youtubePlayerRef.current.unloadModule('captions');
+        }
+      } catch (err) {}
+    }
+  };
+
+  const handleMouseMove = () => {
+    setControlsVisible(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    
+    // Only auto-hide controls if video is playing
+    if (isPlaying) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setControlsVisible(false);
+      }, 2500); // Hide after 2.5 seconds of mouse inactivity
+    }
+  };
+
+  // Reset controls visibility when play state changes
+  useEffect(() => {
+    if (!isPlaying) {
+      setControlsVisible(true);
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    } else {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setControlsVisible(false);
+      }, 2500);
+    }
+
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, [isPlaying]);
+
+  // Host-side Periodic Drift Sync Heartbeat
+  useEffect(() => {
+    let driftInterval = null;
+    if (isHost && socketConnected && isPlaying) {
+      driftInterval = setInterval(() => {
+        let time = 0;
+        if (youtubePlayerRef.current) {
+          try { time = youtubePlayerRef.current.getCurrentTime(); } catch(e){}
+        } else if (videoRef.current) {
+          time = videoRef.current.currentTime;
+        }
+        
+        if (time > 0) {
+          socket.current.emit('drift-sync', { currentTime: time });
+        }
+      }, 4000); // Send drift check every 4 seconds
+    }
+    return () => {
+      if (driftInterval) clearInterval(driftInterval);
+    };
+  }, [isHost, socketConnected, isPlaying]);
+
   // Store file size reference for guest speed tracking
   const fileSizeRef = useRef(0);
 
@@ -574,6 +736,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   // 4. Host File Handling (Drag & Drop + Traditional Input)
   const handleHostFileSelection = (file) => {
     if (file) {
+      setIsGuestReady(false);
+      setGuestProgress(0);
+      socket.current.emit('guest-reset');
+
       setYoutubeUrl(''); // Clear YouTube URL when switching back to local files
       setVideoName(file.name);
       fileRef.current = file;
@@ -923,6 +1089,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
             <div className="w-full max-w-5xl flex flex-col gap-4">
               <div 
                 id="player-wrapper" 
+                onMouseMove={handleMouseMove}
                 className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800 group select-none"
               >
                 {youtubeUrl ? (
@@ -943,9 +1110,51 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                   />
                 )}
 
+                {/* Host Waiting Overlay for Guest Readiness */}
+                {isHost && !isGuestReady && (
+                  <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-6 text-center select-none animate-fade-in">
+                    <div className="p-4 rounded-full bg-indigo-500/10 text-indigo-400 mb-4 border border-indigo-500/20 animate-pulse">
+                      <Users className="h-8 w-8" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white tracking-tight">Syncing Session...</h3>
+                    <p className="text-slate-400 text-sm mt-2 max-w-sm leading-relaxed">
+                      {Object.keys(usersList).length < 2 ? (
+                        "Waiting for a guest to join the room code..."
+                      ) : youtubeUrl ? (
+                        "Guest is loading the YouTube video player..."
+                      ) : (
+                        `Guest is downloading the movie: ${guestProgress}%`
+                      )}
+                    </p>
+                    
+                    {/* Visual Progress Bar for Host */}
+                    {Object.keys(usersList).length >= 2 && !youtubeUrl && (
+                      <div className="w-64 bg-slate-900 border border-slate-800 h-2 rounded-full mt-5 overflow-hidden relative shadow-inner">
+                        <div 
+                          className="bg-indigo-500 h-full rounded-full transition-all duration-300 ease-out"
+                          style={{ width: `${guestProgress}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Guest Standby Screen (Fully Loaded, waiting for Host start click) */}
+                {!isHost && !isPlaying && currentTime === 0 && (
+                  <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-6 text-center select-none">
+                    <div className="p-4 rounded-full bg-violet-500/10 text-violet-400 mb-4 border border-violet-500/20 animate-pulse">
+                      <Sparkles className="h-8 w-8 animate-bounce" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white tracking-tight">Ready & Synced!</h3>
+                    <p className="text-slate-400 text-sm mt-2 max-w-sm leading-relaxed">
+                      Waiting for the Host to start the movie... Get your popcorn! 🍿
+                    </p>
+                  </div>
+                )}
+
                 {/* Custom Overlay Controls - Visible on Hover or when Paused */}
                 <div className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent flex flex-col gap-3 transition-opacity duration-300 z-10 ${
-                  !isPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  (!isPlaying || controlsVisible) ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}>
                   
                   {/* Time Progress Scrubber */}
@@ -1003,6 +1212,19 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                     </div>
 
                     <div className="flex items-center gap-4">
+                      {/* Subtitles Toggle CC Button */}
+                      <button 
+                        onClick={toggleSubtitles} 
+                        className={`p-1 rounded-md transition-colors ${
+                          subtitlesEnabled 
+                            ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20' 
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        }`}
+                        title="Toggle Subtitles"
+                      >
+                        <Subtitles className="h-4 w-4" />
+                      </button>
+
                       {/* Volume Control */}
                       <div className="flex items-center gap-2">
                         <Volume2 className="h-4 w-4 text-slate-400" />

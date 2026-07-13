@@ -174,6 +174,26 @@ io.on('connection', (socket) => {
     socket.to(currentRoomCode).emit('ack-chunk', data);
   });
 
+  socket.on('drift-sync', (data) => {
+    if (!currentRoomCode) return;
+    socket.to(currentRoomCode).emit('drift-sync', data);
+  });
+
+  socket.on('transfer-progress', (data) => {
+    if (!currentRoomCode) return;
+    socket.to(currentRoomCode).emit('transfer-progress', data);
+  });
+
+  socket.on('player-ready', () => {
+    if (!currentRoomCode) return;
+    socket.to(currentRoomCode).emit('player-ready');
+  });
+
+  socket.on('guest-reset', () => {
+    if (!currentRoomCode) return;
+    socket.to(currentRoomCode).emit('guest-reset');
+  });
+
   // Handle play event
   socket.on('player-play', ({ currentTime }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
