@@ -35,6 +35,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   const [copied, setCopied] = useState(false);
   const [showReadyModal, setShowReadyModal] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [youtubeInput, setYoutubeInput] = useState('');
+  const youtubePlayerRef = useRef(null);
+  const isRespondingToSocket = useRef(false);
 
   // References
   const socket = useRef(null);
@@ -101,10 +105,16 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     });
 
     // Listen for Host sharing a movie file metadata
-    socket.current.on('share-torrent', ({ fileName, fileSize }) => {
-      if (initialRoomCode !== 'CREATE' && !transferActive.current && !videoSrcRef.current) {
+    socket.current.on('share-torrent', ({ fileName, fileSize, youtubeUrl: sharedYtUrl }) => {
+      if (initialRoomCode !== 'CREATE' && !videoSrcRef.current) {
         setVideoName(fileName);
-        startFileTransferDownload(fileName, fileSize);
+        if (sharedYtUrl) {
+          setYoutubeUrl(sharedYtUrl);
+          updateVideoSrc('YOUTUBE');
+          transferActive.current = false;
+        } else if (!transferActive.current) {
+          startFileTransferDownload(fileName, fileSize);
+        }
       }
     });
 
@@ -162,7 +172,16 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
     // Playback sync listeners
     socket.current.on('player-play', ({ currentTime }) => {
-      if (videoRef.current) {
+      if (youtubePlayerRef.current) {
+        isRespondingToSocket.current = true;
+        try {
+          if (Math.abs(youtubePlayerRef.current.getCurrentTime() - currentTime) > 1.2) {
+            youtubePlayerRef.current.seekTo(currentTime, true);
+          }
+          youtubePlayerRef.current.playVideo();
+        } catch (e) {}
+        setTimeout(() => { isRespondingToSocket.current = false; }, 200);
+      } else if (videoRef.current) {
         isSyncing.current = true;
         if (Math.abs(videoRef.current.currentTime - currentTime) > 0.8) {
           videoRef.current.currentTime = currentTime;
@@ -172,7 +191,16 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     });
 
     socket.current.on('player-pause', ({ currentTime }) => {
-      if (videoRef.current) {
+      if (youtubePlayerRef.current) {
+        isRespondingToSocket.current = true;
+        try {
+          youtubePlayerRef.current.pauseVideo();
+          if (currentTime !== undefined) {
+            youtubePlayerRef.current.seekTo(currentTime, true);
+          }
+        } catch (e) {}
+        setTimeout(() => { isRespondingToSocket.current = false; }, 200);
+      } else if (videoRef.current) {
         isSyncing.current = true;
         videoRef.current.pause();
         if (currentTime !== undefined) {
@@ -182,7 +210,13 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     });
 
     socket.current.on('player-seek', ({ currentTime }) => {
-      if (videoRef.current) {
+      if (youtubePlayerRef.current) {
+        isRespondingToSocket.current = true;
+        try {
+          youtubePlayerRef.current.seekTo(currentTime, true);
+        } catch (e) {}
+        setTimeout(() => { isRespondingToSocket.current = false; }, 200);
+      } else if (videoRef.current) {
         isSyncing.current = true;
         videoRef.current.currentTime = currentTime;
       }
@@ -225,6 +259,131 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     }
   }, [messages, chatOpen]);
 
+  // YouTube URL extraction helper
+  const extractYouTubeId = (url) => {
+    if (!url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  };
+
+  // Host YouTube loading handler
+  const handleYoutubeLoad = (e) => {
+    e.preventDefault();
+    if (!youtubeInput.trim()) return;
+
+    const videoId = extractYouTubeId(youtubeInput);
+    if (!videoId) {
+      alert('Please enter a valid YouTube URL.');
+      return;
+    }
+
+    setVideoName('YouTube Video');
+    setYoutubeUrl(youtubeInput);
+    updateVideoSrc('YOUTUBE');
+
+    socket.current.emit('share-torrent', {
+      magnetURI: '',
+      fileName: 'YouTube Video',
+      fileSize: 0,
+      youtubeUrl: youtubeInput
+    });
+  };
+
+  // Initialize YouTube Iframe Player API on-demand
+  useEffect(() => {
+    let checkInterval = null;
+
+    if (youtubeUrl) {
+      const videoId = extractYouTubeId(youtubeUrl);
+      if (!videoId) return;
+
+      const initPlayer = () => {
+        if (youtubePlayerRef.current) {
+          try {
+            youtubePlayerRef.current.loadVideoById(videoId);
+          } catch (err) {
+            console.error('Failed to load video:', err);
+          }
+          return;
+        }
+
+        youtubePlayerRef.current = new window.YT.Player('yt-player', {
+          videoId: videoId,
+          playerVars: {
+            rel: 0,
+            showinfo: 0,
+            controls: 1,
+            autoplay: 1,
+            origin: window.location.origin
+          },
+          events: {
+            onStateChange: (event) => {
+              if (isRespondingToSocket.current) return;
+              
+              const currentTime = event.target.getCurrentTime();
+              if (event.data === window.YT.PlayerState.PLAYING) {
+                socket.current.emit('player-play', { currentTime });
+              } else if (event.data === window.YT.PlayerState.PAUSED) {
+                socket.current.emit('player-pause', { currentTime });
+              }
+            }
+          }
+        });
+      };
+
+      // Inject YouTube script tag if not present
+      if (!window.YT) {
+        const tag = document.createElement('script');
+        tag.src = 'https://www.youtube.com/iframe_api';
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        
+        window.onYouTubeIframeAPIReady = () => {
+          initPlayer();
+        };
+      } else {
+        if (window.YT.Player) {
+          initPlayer();
+        } else {
+          const interval = setInterval(() => {
+            if (window.YT && window.YT.Player) {
+              clearInterval(interval);
+              initPlayer();
+            }
+          }, 100);
+        }
+      }
+
+      // Check for manual seeks in the YouTube player
+      let lastTime = 0;
+      checkInterval = setInterval(() => {
+        if (youtubePlayerRef.current && !isRespondingToSocket.current) {
+          try {
+            const state = youtubePlayerRef.current.getPlayerState();
+            if (state === 1) { // PLAYING
+              const curr = youtubePlayerRef.current.getCurrentTime();
+              if (Math.abs(curr - lastTime) > 2) {
+                socket.current.emit('player-seek', { currentTime: curr });
+              }
+              lastTime = curr;
+            }
+          } catch (e) {}
+        }
+      }, 1000);
+    }
+
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+      if (youtubePlayerRef.current && youtubePlayerRef.current.destroy) {
+        try {
+          youtubePlayerRef.current.destroy();
+        } catch (e) {}
+        youtubePlayerRef.current = null;
+      }
+    };
+  }, [youtubeUrl]);
+
   // Store file size reference for guest speed tracking
   const fileSizeRef = useRef(0);
 
@@ -232,6 +391,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   // 4. Host File Handling (Drag & Drop + Traditional Input)
   const handleHostFileSelection = (file) => {
     if (file) {
+      setYoutubeUrl(''); // Clear YouTube URL when switching back to local files
       setVideoName(file.name);
       fileRef.current = file;
       
@@ -510,6 +670,28 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                   className="hidden"
                 />
               </label>
+
+              {/* YouTube Link Integration */}
+              <div className="w-full mt-8 border-t border-slate-900/60 pt-8 text-left">
+                <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2">
+                  Or Stream from YouTube
+                </label>
+                <form onSubmit={handleYoutubeLoad} className="flex gap-2.5">
+                  <input
+                    type="text"
+                    value={youtubeInput}
+                    onChange={(e) => setYoutubeInput(e.target.value)}
+                    className="flex-grow py-2.5 px-4 rounded-xl glass-input text-xs font-semibold border border-white/[0.06] bg-slate-950/30 text-white focus:border-indigo-500/50"
+                    placeholder="Paste YouTube link here..."
+                  />
+                  <button
+                    type="submit"
+                    className="py-2.5 px-5 bg-gradient-to-r from-violet-600 to-violet-700 hover:from-violet-500 hover:to-violet-600 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all shadow-lg"
+                  >
+                    Stream
+                  </button>
+                </form>
+              </div>
             </div>
           ) : !videoName && !isHost ? (
             /* Waiting screen (Guest only) */
@@ -552,18 +734,24 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               </span>
             </div>
           ) : (
-            /* HTML5 Video Player View (Host & Guest) */
+            /* Video Player View (HTML5 or YouTube) */
             <div className="w-full max-w-5xl flex flex-col gap-4">
               <div className="relative aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800 group">
-                <video
-                  ref={videoRef}
-                  src={videoSrc}
-                  className="w-full h-full object-contain"
-                  controls
-                  onPlay={handleLocalPlay}
-                  onPause={handleLocalPause}
-                  onSeeked={handleLocalSeeked}
-                />
+                {youtubeUrl ? (
+                  <div className="w-full h-full">
+                    <div id="yt-player" className="w-full h-full pointer-events-auto"></div>
+                  </div>
+                ) : (
+                  <video
+                    ref={videoRef}
+                    src={videoSrc}
+                    className="w-full h-full object-contain"
+                    controls
+                    onPlay={handleLocalPlay}
+                    onPause={handleLocalPause}
+                    onSeeked={handleLocalSeeked}
+                  />
+                )}
               </div>
 
               <div className="flex items-center justify-between px-2 text-xs">
