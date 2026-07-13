@@ -44,8 +44,8 @@
 body {
   margin: 0;
   padding: 0;
-  background-color: #090d16;
-  color: #f8fafc;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #030712; /* Sleeker, deeper modern dark mode color */
+  color: #f3f4f6;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
   overflow-x: hidden;
 }
