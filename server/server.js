@@ -103,6 +103,14 @@ io.on('connection', (socket) => {
     }
 
     const room = rooms.get(code);
+
+    // Clean up any offline users or duplicate names to prevent double counting / dead sockets
+    for (const id of Object.keys(room.users)) {
+      if (room.users[id].status === 'Offline' || room.users[id].name === name) {
+        delete room.users[id];
+      }
+    }
+
     const numUsers = Object.keys(room.users).length;
 
     // Limit to 2 users for the MVP
