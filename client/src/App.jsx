@@ -209,7 +209,7 @@ function App() {
       <div 
         className="fixed inset-0 backdrop-blur-[2px] -z-10 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at center, rgba(2, 4, 10, 0.1) 0%, rgba(2, 4, 10, 0.7) 50%, rgba(2, 4, 10, 0.98) 100%)'
+          background: 'radial-gradient(circle at center, rgba(2, 4, 10, 0.2) 0%, rgba(2, 4, 10, 0.45) 60%, rgba(2, 4, 10, 0.75) 100%)'
         }}
       />
 
