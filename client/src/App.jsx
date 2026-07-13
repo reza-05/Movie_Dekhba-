@@ -211,25 +211,26 @@ function App() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-grow flex items-center justify-center px-6 py-12 md:py-20 relative z-10">
-        <div className="w-full max-w-4xl text-center space-y-10 flex flex-col items-center">
+      <main className="flex-grow flex items-center justify-center px-6 py-12 md:py-24 relative z-10">
+        <div className="w-full max-w-5xl grid lg:grid-cols-12 gap-12 lg:gap-16 items-center">
           
-          {/* Centered Hero Heading */}
-          <div className="space-y-4 max-w-3xl">
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-white leading-[1.1] md:leading-[1.05]">
+          {/* Left Column: Clean Minimal Typography */}
+          <div className="lg:col-span-7 space-y-6 text-left">
+            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.05]">
               Watch movies<br />
               together with<br />
               <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
-                your friends.
+                your friends
               </span>
             </h1>
-            <p className="text-slate-400 text-sm sm:text-base max-w-xl mx-auto leading-relaxed font-semibold">
-              Host a room and stream movies from local storage or YouTube in real-time, perfectly synced with your friends. Zero buffering, zero size limits.
+            
+            <p className="text-slate-400 text-base md:text-lg max-w-xl leading-relaxed font-semibold">
+              Direct high-speed movie rooms for you and your friends. Upload files from your local storage and watch them instantly with no size limits or quality loss.
             </p>
           </div>
 
-          {/* Centered Interactive Room Access Widget */}
-          <div className="w-full max-w-md">
+          {/* Right Column: Interactive Tabbed Room Access Widget */}
+          <div className="lg:col-span-5 w-full">
             <div className="glass-panel p-8 rounded-3xl border border-white/[0.04] bg-gradient-to-b from-[#0b0f19]/80 to-[#05070c]/90 shadow-2xl relative transition-all duration-300">
               <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 rounded-t-3xl"></div>
 
