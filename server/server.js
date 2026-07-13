@@ -12,6 +12,25 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Render Keep-Alive Endpoint & Self-Pinging Routine
+app.get('/api/keep-alive', (req, res) => {
+  res.json({ status: 'alive', timestamp: new Date().toISOString() });
+});
+
+const RENDER_URL = process.env.RENDER_EXTERNAL_URL;
+if (RENDER_URL) {
+  console.log(`[Keep-Alive] System active. Target URL: ${RENDER_URL}`);
+  setInterval(async () => {
+    try {
+      const response = await fetch(`${RENDER_URL}/api/keep-alive`);
+      const data = await response.json();
+      console.log(`[Keep-Alive] Self-ping successful:`, data);
+    } catch (err) {
+      console.error(`[Keep-Alive] Self-ping failed:`, err.message);
+    }
+  }, 10 * 60 * 1000); // Ping every 10 minutes to prevent Render's 15-min idle spin-down
+}
+
 // Cloudflare R2 Upload Endpoints
 app.get('/api/r2-config', (req, res) => {
   res.json({ configured: checkR2Status() });
