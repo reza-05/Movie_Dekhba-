@@ -225,17 +225,13 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       if (youtubePlayerRef.current) {
         isRespondingToSocket.current = true;
         try {
-          if (Math.abs(youtubePlayerRef.current.getCurrentTime() - currentTime) > 1.5) {
-            youtubePlayerRef.current.seekTo(currentTime, true);
-          }
+          youtubePlayerRef.current.seekTo(currentTime, true);
           youtubePlayerRef.current.playVideo();
         } catch (e) {}
         setTimeout(() => { isRespondingToSocket.current = false; }, 300);
       } else if (videoRef.current) {
         isSyncing.current = true;
-        if (Math.abs(videoRef.current.currentTime - currentTime) > 0.8) {
-          videoRef.current.currentTime = currentTime;
-        }
+        videoRef.current.currentTime = currentTime;
         videoRef.current.play().catch(err => console.warn(err));
         setTimeout(() => { isSyncing.current = false; }, 100);
       }
@@ -291,16 +287,14 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       
       if (youtubePlayerRef.current) {
         const ytTime = youtubePlayerRef.current.getCurrentTime();
-        if (Math.abs(ytTime - currentTime) > 2.0) {
-          console.log('Guest correcting drift (YouTube):', currentTime);
+        if (Math.abs(ytTime - currentTime) > 0.8) {
           isRespondingToSocket.current = true;
           youtubePlayerRef.current.seekTo(currentTime, true);
           setTimeout(() => { isRespondingToSocket.current = false; }, 300);
         }
       } else if (videoRef.current) {
         const vidTime = videoRef.current.currentTime;
-        if (Math.abs(vidTime - currentTime) > 1.5) {
-          console.log('Guest correcting drift (HTML5):', currentTime);
+        if (Math.abs(vidTime - currentTime) > 0.8) {
           isSyncing.current = true;
           videoRef.current.currentTime = currentTime;
           setTimeout(() => { isSyncing.current = false; }, 200);
@@ -335,10 +329,34 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       if (!socket.current || !socketConnected) return;
 
       const status = document.visibilityState === 'hidden' ? 'Away' : 'Active';
-      socket.current.emit('presence-change', { status });
 
-      if (status === 'Away' && videoRef.current && !videoRef.current.paused) {
-        videoRef.current.pause();
+      if (status === 'Away') {
+        let time = 0;
+        let wasPlaying = false;
+
+        if (youtubePlayerRef.current) {
+          try {
+            const state = youtubePlayerRef.current.getPlayerState();
+            if (state === 1) { // PLAYING
+              wasPlaying = true;
+              youtubePlayerRef.current.pauseVideo();
+              time = youtubePlayerRef.current.getCurrentTime();
+            }
+          } catch (e) {}
+        } else if (videoRef.current && !videoRef.current.paused) {
+          wasPlaying = true;
+          videoRef.current.pause();
+          time = videoRef.current.currentTime;
+        }
+
+        if (wasPlaying) {
+          socket.current.emit('presence-change', { status, currentTime: time });
+          socket.current.emit('player-pause', { currentTime: time });
+        } else {
+          socket.current.emit('presence-change', { status });
+        }
+      } else {
+        socket.current.emit('presence-change', { status });
       }
     };
 
@@ -512,6 +530,74 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   }, [youtubeUrl]);
 
   // Custom Controls Helpers
+  const renderProjectorIcon = () => (
+    <svg className="w-24 h-24 mb-4 text-indigo-400 overflow-visible" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="projector-light" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#fef08a" stopOpacity="0.4" />
+          <stop offset="30%" stopColor="#6366f1" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      {/* Light Beam (Pulse Glowing Animation) */}
+      <polygon points="71,51 71,57 95,68 95,40" fill="url(#projector-light)" className="animate-[pulse_1.5s_ease-in-out_infinite]" />
+
+      {/* Projector Body (Deep Slate/Black) */}
+      <rect x="35" y="45" width="30" height="18" rx="2" fill="#0f172a" stroke="#334155" strokeWidth="2" />
+      <rect x="65" y="48" width="6" height="12" rx="1" fill="#fef08a" stroke="#334155" strokeWidth="1.5" className="animate-pulse" />
+      <line x1="38" y1="58" x2="62" y2="58" stroke="#334155" strokeWidth="2" />
+      
+      {/* Tripod Stand */}
+      <line x1="50" y1="63" x2="50" y2="85" stroke="#334155" strokeWidth="2" />
+      <line x1="50" y1="63" x2="40" y2="85" stroke="#334155" strokeWidth="2" />
+      <line x1="50" y1="63" x2="60" y2="85" stroke="#334155" strokeWidth="2" />
+      <circle cx="50" cy="64" r="2" fill="#334155" />
+
+      {/* Reel Arm Brackets */}
+      <line x1="50" y1="46" x2="38" y2="34" stroke="#475569" strokeWidth="3" strokeLinecap="round" />
+      <line x1="50" y1="46" x2="62" y2="34" stroke="#475569" strokeWidth="3" strokeLinecap="round" />
+      
+      {/* Animated Reels */}
+      <g className="animate-[spin_5s_linear_infinite]" style={{ transformOrigin: '38px 34px' }}>
+        <circle cx="38" cy="34" r="12" fill="#1e293b" stroke="#334155" strokeWidth="2" />
+        <circle cx="38" cy="34" r="9" fill="none" stroke="#334155" strokeWidth="1" strokeDasharray="4 2" />
+        <circle cx="38" cy="27" r="1.5" fill="#020617" />
+        <circle cx="38" cy="41" r="1.5" fill="#020617" />
+        <circle cx="31" cy="34" r="1.5" fill="#020617" />
+        <circle cx="45" cy="34" r="1.5" fill="#020617" />
+        <circle cx="38" cy="34" r="2" fill="#94a3b8" />
+      </g>
+      
+      <g className="animate-[spin_5s_linear_infinite]" style={{ transformOrigin: '62px 34px' }}>
+        <circle cx="62" cy="34" r="12" fill="#1e293b" stroke="#334155" strokeWidth="2" />
+        <circle cx="62" cy="34" r="9" fill="none" stroke="#334155" strokeWidth="1" strokeDasharray="4 2" />
+        <circle cx="62" cy="27" r="1.5" fill="#020617" />
+        <circle cx="62" cy="41" r="1.5" fill="#020617" />
+        <circle cx="55" cy="34" r="1.5" fill="#020617" />
+        <circle cx="69" cy="34" r="1.5" fill="#020617" />
+        <circle cx="62" cy="34" r="2" fill="#94a3b8" />
+      </g>
+    </svg>
+  );
+
+  const handleHostReset = () => {
+    setIsGuestReady(false);
+    setGuestProgress(0);
+    setVideoName('');
+    setYoutubeUrl('');
+    updateVideoSrc('');
+    if (socket.current) {
+      socket.current.emit('guest-reset');
+      socket.current.emit('share-torrent', {
+        magnetURI: '',
+        fileName: '',
+        fileSize: 0,
+        youtubeUrl: ''
+      });
+    }
+  };
+
   const formatTime = (seconds) => {
     if (isNaN(seconds) || seconds === null) return '0:00';
     const hrs = Math.floor(seconds / 3600);
@@ -1049,9 +1135,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
             <div className="w-full max-w-xl glass-panel p-10 rounded-2xl text-center flex flex-col items-center border border-slate-800 relative shadow-2xl">
               <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-purple-500 via-purple-600 to-indigo-600"></div>
               
-              <div className="bg-purple-600/10 p-6 rounded-full text-purple-400 mb-6 shadow-inner animate-pulse">
-                <Video className="h-12 w-12" />
-              </div>
+              {renderProjectorIcon()}
               
               <h3 className="text-2xl font-extrabold text-white tracking-tight">Waiting for Host...</h3>
               <p className="text-slate-400 text-sm mt-3 px-6 leading-relaxed">
@@ -1113,9 +1197,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                 {/* Host Waiting Overlay for Guest Readiness */}
                 {isHost && !isGuestReady && (
                   <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-6 text-center select-none animate-fade-in">
-                    <div className="p-4 rounded-full bg-indigo-500/10 text-indigo-400 mb-4 border border-indigo-500/20 animate-pulse">
-                      <Users className="h-8 w-8" />
-                    </div>
+                    {renderProjectorIcon()}
                     <h3 className="text-xl font-bold text-white tracking-tight">Syncing Session...</h3>
                     <p className="text-slate-400 text-sm mt-2 max-w-sm leading-relaxed">
                       {Object.keys(usersList).length < 2 ? (
@@ -1142,9 +1224,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                 {/* Guest Standby Screen (Fully Loaded, waiting for Host start click) */}
                 {!isHost && !isPlaying && currentTime === 0 && (
                   <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-6 text-center select-none">
-                    <div className="p-4 rounded-full bg-violet-500/10 text-violet-400 mb-4 border border-violet-500/20 animate-pulse">
-                      <Sparkles className="h-8 w-8 animate-bounce" />
-                    </div>
+                    {renderProjectorIcon()}
                     <h3 className="text-xl font-bold text-white tracking-tight">Ready & Synced!</h3>
                     <p className="text-slate-400 text-sm mt-2 max-w-sm leading-relaxed">
                       Waiting for the Host to start the movie... Get your popcorn! 🍿
@@ -1256,15 +1336,12 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               <div className="flex items-center justify-between px-2 text-xs">
                 <span className="text-slate-400 truncate max-w-xs md:max-w-md">Playing: <strong className="text-slate-200">{videoName}</strong></span>
                 {isHost && (
-                  <label className="cursor-pointer text-indigo-400 hover:text-indigo-300 font-semibold transition-colors">
-                    Change File
-                    <input
-                      type="file"
-                      accept="video/*"
-                      onChange={handleHostFileChange}
-                      className="hidden"
-                    />
-                  </label>
+                  <button 
+                    onClick={handleHostReset}
+                    className="text-indigo-400 hover:text-indigo-300 font-semibold transition-colors bg-transparent border-none cursor-pointer p-0"
+                  >
+                    {youtubeUrl ? "Change Video" : "Change File"}
+                  </button>
                 )}
               </div>
             </div>
