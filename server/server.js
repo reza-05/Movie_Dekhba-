@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { Server as TrackerServer } from 'bittorrent-tracker';
 
 dotenv.config();
 
@@ -11,6 +12,19 @@ app.use(cors());
 app.use(express.json());
 
 const server = createServer(app);
+
+// Initialize Private WebSockets Bittorrent Tracker for WebRTC signaling
+const tracker = new TrackerServer({
+  http: false,
+  udp: false,
+  ws: true,
+  stats: false
+});
+
+tracker.on('error', (err) => {
+  console.error('Tracker error:', err.message);
+});
+
 const io = new Server(server, {
   cors: {
     origin: '*', // Allow all origins for the MVP
@@ -18,12 +32,23 @@ const io = new Server(server, {
   },
 });
 
+// Master Upgrade Dispatcher to prevent Socket.io from destroying tracker WebSocket connections
+const upgradeListeners = server.listeners('upgrade').slice();
+server.removeAllListeners('upgrade');
+server.on('upgrade', (request, socket, head) => {
+  if (request.url && request.url.includes('/tracker')) {
+    tracker.ws.handleUpgrade(request, socket, head, (ws) => {
+      tracker.ws.emit('connection', ws, request);
+    });
+    console.log('Master Dispatcher: Handled upgrade for local WebSockets Tracker connection');
+  } else {
+    for (const listener of upgradeListeners) {
+      listener(request, socket, head);
+    }
+  }
+});
+
 // In-memory room store
-// rooms[roomCode] = {
-//   code: string,
-//   videoState: { playing: false, currentTime: 0, lastUpdated: Date.now() },
-//   users: { [socketId]: { name, status: 'Active' | 'Away' | 'Offline' } }
-// }
 const rooms = new Map();
 
 // Helper to generate a random 6-character room code
@@ -56,6 +81,7 @@ io.on('connection', (socket) => {
       users: {
         [socket.id]: userProfile,
       },
+      magnetURI: null,
     };
 
     rooms.set(roomCode, roomData);
@@ -97,7 +123,40 @@ io.on('connection', (socket) => {
       roomCode: code,
       users: room.users,
       videoState: room.videoState,
+      magnetURI: room.magnetURI,
+      fileName: room.fileName,
+      fileSize: room.fileSize,
     });
+  });
+
+  // Handle sharing of the torrent magnet URI
+  socket.on('share-torrent', ({ magnetURI, fileName, fileSize }) => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
+    const room = rooms.get(currentRoomCode);
+
+    room.magnetURI = magnetURI;
+    room.fileName = fileName;
+    room.fileSize = fileSize;
+    
+    // Broadcast magnet to other users in the room
+    socket.to(currentRoomCode).emit('share-torrent', { magnetURI, fileName, fileSize });
+    console.log(`[${currentRoomCode}] Shared Torrent Magnet: ${magnetURI}`);
+  });
+
+  // Socket streaming fallback events (for localhost loopback / strict NAT environments)
+  socket.on('request-file-stream', (data) => {
+    if (!currentRoomCode) return;
+    socket.to(currentRoomCode).emit('request-file-stream', data);
+  });
+
+  socket.on('file-stream-chunk', (data) => {
+    if (!currentRoomCode) return;
+    socket.to(currentRoomCode).emit('file-stream-chunk', data);
+  });
+
+  socket.on('file-stream-end', () => {
+    if (!currentRoomCode) return;
+    socket.to(currentRoomCode).emit('file-stream-end');
   });
 
   // Handle play event
@@ -182,6 +241,7 @@ io.on('connection', (socket) => {
       roomCode: currentRoomCode,
       users: room.users,
       videoState: room.videoState,
+      magnetURI: room.magnetURI,
     });
   });
 
@@ -216,6 +276,7 @@ io.on('connection', (socket) => {
             roomCode: currentRoomCode,
             users: room.users,
             videoState: room.videoState,
+            magnetURI: room.magnetURI,
           });
         }
       }

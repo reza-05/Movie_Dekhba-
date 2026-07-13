@@ -13,10 +13,12 @@
     "@tailwindcss/vite": "^4.3.2",
     "firebase": "^12.16.0",
     "lucide-react": "^1.24.0",
+    "mux.js": "^6.3.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "socket.io-client": "^4.8.3",
-    "tailwindcss": "^4.3.2"
+    "tailwindcss": "^4.3.2",
+    "webtorrent": "^3.0.16"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",
