@@ -85,6 +85,16 @@ function App() {
   const [activeRoomCode, setActiveRoomCode] = useState(null);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('host'); // 'host' or 'join'
+  const [roomAccess, setRoomAccess] = useState('public'); // 'public' or 'restricted'
+
+  const [deviceId] = useState(() => {
+    let id = localStorage.getItem('movie_dekhba_device_id');
+    if (!id) {
+      id = 'device_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem('movie_dekhba_device_id', id);
+    }
+    return id;
+  });
 
   // Clear legacy names from local storage automatically
   useEffect(() => {
@@ -169,6 +179,8 @@ function App() {
         <TheatreRoom
           roomCode={activeRoomCode}
           userName={userName.trim()}
+          roomAccess={roomAccess}
+          deviceId={deviceId}
           onLeave={handleLeaveRoom}
         />
       </ErrorBoundary>
@@ -396,6 +408,36 @@ function App() {
                         className="w-full py-[1.125rem] pl-12 pr-4 rounded-2xl glass-input text-base font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] placeholder:text-slate-500 transition-all duration-300"
                         placeholder="E.g., Alex"
                       />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
+                      Room Access Mode
+                    </label>
+                    <div className="grid grid-cols-2 gap-2 bg-[#02040a]/65 p-1 rounded-2xl border border-white/[0.04]">
+                      <button
+                        type="button"
+                        onClick={() => setRoomAccess('public')}
+                        className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 select-none cursor-pointer ${
+                          roomAccess === 'public'
+                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-600/10'
+                            : 'text-slate-450 hover:text-slate-200'
+                        }`}
+                      >
+                        Instant Entry
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRoomAccess('restricted')}
+                        className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 select-none cursor-pointer ${
+                          roomAccess === 'restricted'
+                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-600/10'
+                            : 'text-slate-450 hover:text-slate-200'
+                        }`}
+                      >
+                        Host Approval
+                      </button>
                     </div>
                   </div>
 

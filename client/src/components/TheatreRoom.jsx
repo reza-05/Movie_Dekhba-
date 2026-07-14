@@ -7,7 +7,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 
-function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
+function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId, onLeave }) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
 
   const [roomCode, setRoomCode] = useState(initialRoomCode === 'CREATE' ? '' : initialRoomCode);
@@ -193,11 +193,12 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       console.log('Connected to sync server socket');
       
       if (initialRoomCode === 'CREATE') {
-        socket.current.emit('create-room', { name: userName });
+        socket.current.emit('create-room', { name: userName, accessType: roomAccess });
       } else {
         socket.current.emit('join-room', {
           roomCode: initialRoomCode,
-          name: userName
+          name: userName,
+          deviceId: deviceId
         });
       }
     });
@@ -264,13 +265,18 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       setJoinRequestStatus(null);
     });
 
+    socket.current.on('waiting-approval', () => {
+      setJoinRequestStatus('waiting');
+    });
+
     socket.current.on('join-request-approved', () => {
       setIsBanned(false);
       setJoinRequestStatus('approved');
       if (socket.current) {
         socket.current.emit('join-room', {
           roomCode: initialRoomCode,
-          name: userName
+          name: userName,
+          deviceId: deviceId
         });
       }
     });
@@ -1300,7 +1306,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (isBanned || isKicked) {
+  if (isBanned || isKicked || joinRequestStatus === 'waiting' || joinRequestStatus === 'denied') {
+    const isWaiting = joinRequestStatus === 'waiting';
+    const isDenied = joinRequestStatus === 'denied';
+
     return (
       <div className="min-h-screen bg-[#02040a] flex items-center justify-center p-6 relative">
         <div className="fixed inset-0 overflow-hidden pointer-events-none -z-20 flex justify-center items-center opacity-[0.15] select-none">
@@ -1314,40 +1323,60 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
         </div>
         
         <div className="w-full max-w-md bg-slate-950/60 border border-white/[0.04] backdrop-blur-xl p-8 rounded-3xl shadow-2xl text-center flex flex-col items-center gap-6 animate-scale-up">
-          <div className="p-4 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20">
-            <ShieldAlert className="h-8 w-8" />
+          <div className={`p-4 rounded-2xl border ${
+            isWaiting 
+              ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' 
+              : 'bg-rose-500/10 text-rose-500 border-rose-500/20'
+          }`}>
+            {isWaiting ? (
+              <Users className="h-8 w-8 animate-pulse" />
+            ) : (
+              <ShieldAlert className="h-8 w-8" />
+            )}
           </div>
           
           <div>
             <h2 className="text-xl font-bold tracking-tight text-white mb-2">
-              {isKicked ? 'Kicked from Room' : 'Access Denied'}
+              {isWaiting 
+                ? 'Waiting for Approval' 
+                : isDenied 
+                ? 'Entry Denied' 
+                : isKicked 
+                ? 'Kicked from Room' 
+                : 'Access Denied'}
             </h2>
             <p className="text-sm text-slate-400 leading-relaxed">
-              {isKicked 
-                ? 'You have been kicked out of this watch party lounge.' 
-                : joinRequestStatus === 'denied'
-                ? 'Your request to re-join was denied by the Host.'
-                : 'You have been blocked from this watch room by the Host.'}
+              {isWaiting
+                ? 'The room host has been notified. You will be admitted automatically once approved.'
+                : isDenied
+                ? 'Your request to join this watch party was declined by the host.'
+                : isKicked
+                ? 'You have been kicked out of this watch party lounge.'
+                : 'You have been blocked from this watch room by the host.'}
             </p>
           </div>
 
           <div className="w-full flex flex-col gap-3">
-            {!isKicked && joinRequestStatus !== 'sent' && joinRequestStatus !== 'sending' && (
+            {(isBanned || isKicked || isDenied) && joinRequestStatus !== 'sent' && joinRequestStatus !== 'sending' && (
               <button
                 onClick={() => {
                   setJoinRequestStatus('sending');
-                  socket.current.emit('request-join-approval', { roomCode: initialRoomCode, name: userName });
+                  socket.current.emit('request-join-approval', { 
+                    roomCode: initialRoomCode, 
+                    name: userName,
+                    deviceId: deviceId
+                  });
                   setJoinRequestStatus('sent');
                 }}
                 className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-semibold transition-colors cursor-pointer"
               >
-                {joinRequestStatus === 'denied' ? 'Request Again' : 'Request to Join'}
+                {isDenied ? 'Request Again' : 'Request to Join'}
               </button>
             )}
             
-            {joinRequestStatus === 'sent' && (
+            {(joinRequestStatus === 'sent' || isWaiting) && (
               <div className="w-full py-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 animate-pulse">
-                <span>Waiting for Host approval...</span>
+                <span>Waiting for host approval...</span>
               </div>
             )}
 
@@ -1355,7 +1384,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               onClick={onLeave}
               className="w-full py-3 bg-slate-900 hover:bg-slate-800 border border-white/[0.06] text-slate-300 rounded-2xl font-semibold transition-colors cursor-pointer"
             >
-              Exit Room
+              Exit Lounge
             </button>
           </div>
         </div>

@@ -118,18 +118,25 @@ io.on('connection', (socket) => {
   let userProfile = null;
 
   // Handle room creation
-  socket.on('create-room', ({ name }) => {
+  socket.on('create-room', ({ name, accessType }) => {
     let roomCode = generateRoomCode();
     // Ensure uniqueness
     while (rooms.has(roomCode)) {
       roomCode = generateRoomCode();
     }
 
-    userProfile = { name, status: 'Active' };
+    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+    userProfile = { name, status: 'Active', ip: clientIp, deviceId: 'host-device' };
+    
     const roomData = {
       code: roomCode,
       hostId: socket.id,
+      accessType: accessType || 'public', // 'public' or 'restricted'
       bannedNames: [],
+      bannedIps: [],
+      bannedDeviceIds: [],
+      approvedGuests: [],
+      pendingGuests: {},
       videoState: { playing: false, currentTime: 0, lastUpdated: Date.now() },
       users: {
         [socket.id]: userProfile,
@@ -145,14 +152,14 @@ io.on('connection', (socket) => {
     currentRoomCode = roomCode;
 
     socket.join(roomCode);
-    console.log(`Room created: ${roomCode} by ${name} (Host ID: ${socket.id})`);
+    console.log(`Room created: ${roomCode} by ${name} (Host ID: ${socket.id}, Access: ${roomData.accessType})`);
 
     // Acknowledge creation
     socket.emit('room-created', { roomCode, users: roomData.users, hostId: roomData.hostId });
   });
 
   // Handle room joining
-  socket.on('join-room', ({ roomCode, name }) => {
+  socket.on('join-room', ({ roomCode, name, deviceId }) => {
     const code = roomCode.trim().toUpperCase();
     if (!rooms.has(code)) {
       socket.emit('join-error', 'Room not found.');
@@ -160,13 +167,35 @@ io.on('connection', (socket) => {
     }
 
     const room = rooms.get(code);
+    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
-    // Check if the user is banned
-    if (room.bannedNames && room.bannedNames.includes(name)) {
+    // Check if the user is banned by Name, IP, or Device ID
+    const isBanned = (room.bannedNames && room.bannedNames.includes(name)) ||
+                     (room.bannedIps && room.bannedIps.includes(clientIp)) ||
+                     (room.bannedDeviceIds && room.bannedDeviceIds.includes(deviceId));
+                     
+    if (isBanned) {
       socket.emit('banned-error', {
-        message: 'You have been blocked from this room.',
+        message: 'Access Denied',
         roomCode: code,
         name
+      });
+      return;
+    }
+
+    // Check if Host Approval is required and requester is not the host or already approved
+    if (room.accessType === 'restricted' && socket.id !== room.hostId && (!room.approvedGuests || !room.approvedGuests.includes(deviceId))) {
+      // Register in pending list
+      if (!room.pendingGuests) room.pendingGuests = {};
+      room.pendingGuests[socket.id] = { name, socketId: socket.id, ip: clientIp, deviceId };
+
+      socket.emit('waiting-approval', { roomCode: code, name });
+
+      // Notify the active host
+      io.to(room.hostId).emit('join-request-received', {
+        name,
+        requesterSocketId: socket.id,
+        roomCode: code
       });
       return;
     }
@@ -178,12 +207,12 @@ io.on('connection', (socket) => {
       }
     }
 
-    userProfile = { name, status: 'Active' };
+    userProfile = { name, status: 'Active', deviceId, ip: clientIp };
     room.users[socket.id] = userProfile;
     currentRoomCode = code;
 
     socket.join(code);
-    console.log(`User ${name} joined room: ${code}`);
+    console.log(`User ${name} joined room: ${code} (IP: ${clientIp}, Device ID: ${deviceId})`);
 
     // Notify the room about the new user and state
     io.to(code).emit('room-updated', {
@@ -342,12 +371,21 @@ io.on('connection', (socket) => {
     if (!targetUser) return;
 
     const kickedName = targetUser.name;
-    // Add name to bannedNames list
+    const kickedIp = targetUser.ip;
+    const kickedDeviceId = targetUser.deviceId;
+
+    // Add name, IP, and deviceId to banned lists to prevent rejoining under different name
     if (!room.bannedNames.includes(kickedName)) {
       room.bannedNames.push(kickedName);
     }
+    if (kickedIp && !room.bannedIps.includes(kickedIp)) {
+      room.bannedIps.push(kickedIp);
+    }
+    if (kickedDeviceId && !room.bannedDeviceIds.includes(kickedDeviceId)) {
+      room.bannedDeviceIds.push(kickedDeviceId);
+    }
 
-    console.log(`[${currentRoomCode}] Kicking out user ${kickedName} (${targetSocketId})`);
+    console.log(`[${currentRoomCode}] Kicking out user ${kickedName} (IP: ${kickedIp}, Device ID: ${kickedDeviceId})`);
 
     // Notify the target user they've been kicked
     io.to(targetSocketId).emit('kicked-from-room');
@@ -383,18 +421,24 @@ io.on('connection', (socket) => {
   });
 
   // Handle blocked user join requests
-  socket.on('request-join-approval', ({ roomCode, name }) => {
+  socket.on('request-join-approval', ({ roomCode, name, deviceId }) => {
     const code = roomCode.trim().toUpperCase();
     if (!rooms.has(code)) return;
     const room = rooms.get(code);
+    const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
-    console.log(`[${code}] Blocked user ${name} requested join approval from host ${room.hostId}`);
+    console.log(`[${code}] User ${name} requested join approval (Device ID: ${deviceId})`);
+
+    // Register in pending list
+    if (!room.pendingGuests) room.pendingGuests = {};
+    room.pendingGuests[socket.id] = { name, socketId: socket.id, ip: clientIp, deviceId };
 
     // Send the approval request to the active host
     io.to(room.hostId).emit('join-request-received', {
       name,
       requesterSocketId: socket.id,
-      roomCode: code
+      roomCode: code,
+      deviceId
     });
   });
 
@@ -405,14 +449,41 @@ io.on('connection', (socket) => {
     const room = rooms.get(code);
     if (socket.id !== room.hostId) return; // Only host can approve or deny
 
+    const pendingUser = room.pendingGuests ? room.pendingGuests[requesterSocketId] : null;
+    const targetName = pendingUser ? pendingUser.name : name;
+    const targetDeviceId = pendingUser ? pendingUser.deviceId : null;
+    const targetIp = pendingUser ? pendingUser.ip : null;
+
     if (approved) {
-      console.log(`[${code}] Host approved join request for ${name}`);
-      // Remove from bannedNames list
-      room.bannedNames = room.bannedNames.filter(n => n !== name);
+      console.log(`[${code}] Host approved join request for ${targetName}`);
+      
+      // Remove from banned lists
+      room.bannedNames = room.bannedNames.filter(n => n !== targetName);
+      if (targetIp) {
+        room.bannedIps = room.bannedIps.filter(ip => ip !== targetIp);
+      }
+      if (targetDeviceId) {
+        room.bannedDeviceIds = room.bannedDeviceIds.filter(id => id !== targetDeviceId);
+        
+        // Add to approved list so they bypass checking in future
+        if (!room.approvedGuests.includes(targetDeviceId)) {
+          room.approvedGuests.push(targetDeviceId);
+        }
+      }
+
+      // Remove from pending list
+      if (room.pendingGuests) {
+        delete room.pendingGuests[requesterSocketId];
+      }
+
       // Notify the requester socket they are allowed to join
       io.to(requesterSocketId).emit('join-request-approved');
     } else {
-      console.log(`[${code}] Host denied join request for ${name}`);
+      console.log(`[${code}] Host denied join request for ${targetName}`);
+      
+      if (room.pendingGuests) {
+        delete room.pendingGuests[requesterSocketId];
+      }
       io.to(requesterSocketId).emit('join-request-denied');
     }
   });
