@@ -254,9 +254,10 @@ io.on('connection', (socket) => {
     room.videoState.currentTime = currentTime;
     room.videoState.lastUpdated = Date.now();
 
+    const senderName = room.users[socket.id]?.name || 'Someone';
     // Broadcast to other client in the room
-    socket.to(currentRoomCode).emit('player-play', { currentTime });
-    console.log(`[${currentRoomCode}] Play at ${currentTime} by ${userProfile?.name}`);
+    socket.to(currentRoomCode).emit('player-play', { currentTime, senderName });
+    console.log(`[${currentRoomCode}] Play at ${currentTime} by ${senderName}`);
   });
 
   // Handle pause event
@@ -268,9 +269,10 @@ io.on('connection', (socket) => {
     room.videoState.currentTime = currentTime;
     room.videoState.lastUpdated = Date.now();
 
+    const senderName = room.users[socket.id]?.name || 'Someone';
     // Broadcast to other client in the room
-    socket.to(currentRoomCode).emit('player-pause', { currentTime });
-    console.log(`[${currentRoomCode}] Pause at ${currentTime} by ${userProfile?.name}`);
+    socket.to(currentRoomCode).emit('player-pause', { currentTime, senderName });
+    console.log(`[${currentRoomCode}] Pause at ${currentTime} by ${senderName}`);
   });
 
   // Handle seek event
@@ -281,9 +283,10 @@ io.on('connection', (socket) => {
     room.videoState.currentTime = currentTime;
     room.videoState.lastUpdated = Date.now();
 
+    const senderName = room.users[socket.id]?.name || 'Someone';
     // Broadcast to other client in the room
-    socket.to(currentRoomCode).emit('player-seek', { currentTime });
-    console.log(`[${currentRoomCode}] Seek to ${currentTime} by ${userProfile?.name}`);
+    socket.to(currentRoomCode).emit('player-seek', { currentTime, senderName });
+    console.log(`[${currentRoomCode}] Seek to ${currentTime} by ${senderName}`);
   });
 
   // Handle host delegation

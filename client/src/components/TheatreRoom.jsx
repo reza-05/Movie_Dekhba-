@@ -67,6 +67,19 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   const [isR2Enabled, setIsR2Enabled] = useState(false);
   const [isUploadingCloud, setIsUploadingCloud] = useState(false);
 
+  const [playerNotification, setPlayerNotification] = useState('');
+  const playerNotificationTimeoutRef = useRef(null);
+
+  const showPlayerNotification = (text) => {
+    setPlayerNotification(text);
+    if (playerNotificationTimeoutRef.current) {
+      clearTimeout(playerNotificationTimeoutRef.current);
+    }
+    playerNotificationTimeoutRef.current = setTimeout(() => {
+      setPlayerNotification('');
+    }, 3000);
+  };
+
   const initialVideoState = useRef(null);
 
   const [activeDropdownUser, setActiveDropdownUser] = useState(null);
@@ -359,7 +372,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     });
 
     // Playback sync listeners
-    socket.current.on('player-play', ({ currentTime }) => {
+    socket.current.on('player-play', ({ currentTime, senderName }) => {
+      showPlayerNotification(`${senderName || 'Someone'} played the video`);
       setIsPlaying(true);
       if (currentTime !== undefined) {
         setCurrentTime(currentTime);
@@ -379,7 +393,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       }
     });
 
-    socket.current.on('player-pause', ({ currentTime }) => {
+    socket.current.on('player-pause', ({ currentTime, senderName }) => {
+      showPlayerNotification(`${senderName || 'Someone'} paused the video`);
       setIsPlaying(false);
       if (currentTime !== undefined) {
         setCurrentTime(currentTime);
@@ -403,8 +418,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       }
     });
 
-    socket.current.on('player-seek', ({ currentTime }) => {
+    socket.current.on('player-seek', ({ currentTime, senderName }) => {
       if (currentTime !== undefined) {
+        showPlayerNotification(`${senderName || 'Someone'} seeked to ${formatTime(currentTime)}`);
         setCurrentTime(currentTime);
       }
       if (youtubePlayerRef.current) {
@@ -649,9 +665,11 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               const currentTime = event.target.getCurrentTime();
               if (event.data === window.YT.PlayerState.PLAYING) {
                 setIsPlaying(true);
+                showPlayerNotification('You played the video');
                 socket.current.emit('player-play', { currentTime });
               } else if (event.data === window.YT.PlayerState.PAUSED) {
                 setIsPlaying(false);
+                showPlayerNotification('You paused the video');
                 socket.current.emit('player-pause', { currentTime });
               }
             }
@@ -1197,12 +1215,36 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   };
 
   // 7. Video Control Hooks (Socket Sync Emits)
+  const handleVideoMetadataLoaded = (e) => {
+    if (initialVideoState.current && !isHost) {
+      const elapsed = initialVideoState.current.playing 
+        ? (Date.now() - initialVideoState.current.lastUpdated) / 1000 
+        : 0;
+      
+      const targetTime = initialVideoState.current.currentTime + elapsed;
+      console.log(`[Sync] Late-join auto sync: Seeking local HTML5 video to ${targetTime}s`);
+      
+      isSyncing.current = true;
+      e.target.currentTime = targetTime;
+      if (initialVideoState.current.playing) {
+        e.target.play().catch(err => console.warn(err));
+        setIsPlaying(true);
+      } else {
+        e.target.pause();
+        setIsPlaying(false);
+      }
+      setTimeout(() => { isSyncing.current = false; }, 200);
+      initialVideoState.current = null;
+    }
+  };
+
   const handleLocalPlay = () => {
     setIsPlaying(true);
     if (isSyncing.current) {
       isSyncing.current = false;
       return;
     }
+    showPlayerNotification('You played the video');
     if (socket.current && videoRef.current) {
       socket.current.emit('player-play', { currentTime: videoRef.current.currentTime });
     }
@@ -1214,6 +1256,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       isSyncing.current = false;
       return;
     }
+    showPlayerNotification('You paused the video');
     if (socket.current && videoRef.current) {
       socket.current.emit('player-pause', { currentTime: videoRef.current.currentTime });
     }
@@ -1224,8 +1267,11 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       isSyncing.current = false;
       return;
     }
-    if (socket.current && videoRef.current) {
-      socket.current.emit('player-seek', { currentTime: videoRef.current.currentTime });
+    if (videoRef.current) {
+      showPlayerNotification(`You seeked to ${formatTime(videoRef.current.currentTime)}`);
+      if (socket.current) {
+        socket.current.emit('player-seek', { currentTime: videoRef.current.currentTime });
+      }
     }
   };
 
@@ -1354,7 +1400,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/40 text-xs font-semibold text-slate-300 border border-slate-700/50">
             <Users className="h-3.5 w-3.5 text-indigo-400" />
-            <span>{Object.keys(usersList).length}/2 Viewers</span>
+            <span>{Object.keys(usersList).length} {Object.keys(usersList).length === 1 ? 'Viewer' : 'Viewers'}</span>
           </div>
 
           <button
@@ -1505,6 +1551,16 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                 onMouseMove={handleMouseMove}
                 className="relative w-full aspect-video bg-black rounded-xl overflow-hidden shadow-2xl border border-slate-800 group select-none"
               >
+                {/* Temporary Playback Event Notification Overlay */}
+                {playerNotification && (
+                  <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-30 pointer-events-none animate-slide-down">
+                    <div className="px-4 py-2 bg-slate-950/80 border border-white/[0.08] backdrop-blur-md rounded-full shadow-lg flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-indigo-500 animate-ping" />
+                      <span className="text-[11px] font-semibold text-slate-200 uppercase tracking-wider">{playerNotification}</span>
+                    </div>
+                  </div>
+                )}
+
                 {youtubeUrl ? (
                   <div className="w-full h-full pointer-events-none">
                     <div id="yt-player" className="w-full h-full"></div>
@@ -1520,6 +1576,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                     onSeeked={handleLocalSeeked}
                     onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
                     onDurationChange={(e) => setDuration(e.target.duration)}
+                    onLoadedMetadata={handleVideoMetadataLoaded}
                     playsInline
                     webkit-playsinline="true"
                     preload="auto"
