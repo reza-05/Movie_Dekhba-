@@ -139,6 +139,15 @@ body {
   animation: pulseGlow 3s ease-in-out infinite;
 }
 
+@keyframes scalePulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+}
+
+.animate-scale-pulse {
+  animation: scalePulse 1.2s ease-in-out infinite;
+}
+
 /* Infinite Scrolling Movie Grid Animations */
 @keyframes scrollWallUp {
   0% { transform: translateY(0); }

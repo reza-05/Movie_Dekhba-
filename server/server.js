@@ -102,6 +102,15 @@ server.on('upgrade', (request, socket, head) => {
 // In-memory room store
 const rooms = new Map();
 
+// Helper to broadcast and save chat history
+const sendChatMessage = (roomCode, msg) => {
+  if (!rooms.has(roomCode)) return;
+  const room = rooms.get(roomCode);
+  if (!room.chatHistory) room.chatHistory = [];
+  room.chatHistory.push(msg);
+  io.to(roomCode).emit('chat-message', msg);
+};
+
 // Helper to generate a random 6-character room code
 function generateRoomCode() {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -200,9 +209,9 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Clean up duplicate names or offline users to prevent double counting
+    // Clean up duplicate names, offline users, or matching deviceIds to prevent double counting
     for (const id of Object.keys(room.users)) {
-      if (room.users[id].status === 'Offline' || room.users[id].name === name) {
+      if (room.users[id].status === 'Offline' || room.users[id].name === name || room.users[id].deviceId === deviceId) {
         delete room.users[id];
       }
     }
@@ -213,6 +222,9 @@ io.on('connection', (socket) => {
 
     socket.join(code);
     console.log(`User ${name} joined room: ${code} (IP: ${clientIp}, Device ID: ${deviceId})`);
+    
+    // Emit persistent chat history to the newly joined client
+    socket.emit('chat-history', room.chatHistory || []);
 
     // Notify the room about the new user and state
     io.to(code).emit('room-updated', {
@@ -357,7 +369,7 @@ io.on('connection', (socket) => {
       text: `${room.users[targetSocketId]?.name || 'Someone'} is now the Host.`,
       timestamp: Date.now(),
     };
-    io.to(currentRoomCode).emit('chat-message', systemMessage);
+    sendChatMessage(currentRoomCode, systemMessage);
   });
 
   // Handle user kickout
@@ -417,7 +429,7 @@ io.on('connection', (socket) => {
       text: `${kickedName} has been kicked out of the room.`,
       timestamp: Date.now(),
     };
-    io.to(currentRoomCode).emit('chat-message', systemMessage);
+    sendChatMessage(currentRoomCode, systemMessage);
   });
 
   // Handle blocked user join requests
@@ -499,7 +511,7 @@ io.on('connection', (socket) => {
       timestamp: Date.now(),
     };
 
-    io.to(currentRoomCode).emit('chat-message', message);
+    sendChatMessage(currentRoomCode, message);
     console.log(`[${currentRoomCode}] Message from ${userProfile.name}: ${messageText}`);
   });
 
@@ -581,7 +593,7 @@ io.on('connection', (socket) => {
                 text: `${room.users[newHostId].name} is now the Host (previous host left).`,
                 timestamp: Date.now(),
               };
-              io.to(currentRoomCode).emit('chat-message', systemMessage);
+              sendChatMessage(currentRoomCode, systemMessage);
             }
           }
 

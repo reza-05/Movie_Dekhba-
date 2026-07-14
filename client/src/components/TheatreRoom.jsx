@@ -91,7 +91,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
   const [activeDropdownUser, setActiveDropdownUser] = useState(null);
 
-  const getUserAvatarSVG = (name) => {
+  const getUserAvatarSVG = (name, index, customClass = "h-9 w-9") => {
     // Generate a simple hash from the username
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
@@ -111,7 +111,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       { stroke: '#bef264', eyes: '#4d7c0f' }  // Lime
     ];
 
-    const color = colors[hash % colors.length];
+    // Use list index if provided, fallback to username hash to prevent collisions
+    const activeIndex = index !== undefined && index !== -1 ? index : hash;
+    const color = colors[activeIndex % colors.length];
     
     // Choose robot body/face style based on hash
     const bodyStyles = [
@@ -152,10 +154,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       </g>
     ];
 
-    const bodyStyle = bodyStyles[hash % bodyStyles.length];
+    const bodyStyle = bodyStyles[activeIndex % bodyStyles.length];
 
     return (
-      <svg className="h-9 w-9 rounded-lg bg-slate-950 border border-slate-800/80 p-0.5" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg className={`${customClass} rounded-lg bg-slate-950 border border-slate-800/80 p-0.5 shrink-0`} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="bot-grad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#1e293b" />
@@ -242,6 +244,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       setUsersList(users);
       setHostId(serverHostId);
       setIsHost(serverHostId === socket.current.id);
+    });
+
+    socket.current.on('chat-history', (history) => {
+      setMessages(history);
     });
 
     socket.current.on('room-updated', ({ roomCode: code, users, hostId: serverHostId, videoState, fileName, fileSize, youtubeUrl: sharedYtUrl, cloudUrl }) => {
@@ -1472,8 +1478,16 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
         {/* Toolbar Info */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/40 text-xs font-semibold text-slate-300 border border-slate-700/50">
-            <Users className="h-3.5 w-3.5 text-indigo-400" />
+          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            isHost && joinRequests.length > 0
+              ? 'bg-rose-500/10 text-rose-300 border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.2)]'
+              : 'bg-slate-800/40 text-slate-300 border-slate-700/50'
+          }`}>
+            <Users className={`h-3.5 w-3.5 ${
+              isHost && joinRequests.length > 0
+                ? 'text-rose-400 animate-scale-pulse'
+                : 'text-indigo-400'
+            }`} />
             <span>{Object.keys(usersList).length} {Object.keys(usersList).length === 1 ? 'Viewer' : 'Viewers'}</span>
           </div>
 
@@ -1852,29 +1866,34 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {(usersExpanded ? Object.entries(usersList) : Object.entries(usersList).slice(0, 2)).map(([sid, uProfile]) => {
-                const isUserAway = uProfile.status === 'Away';
-                const isUserOffline = uProfile.status === 'Offline';
-                const isCurrentUser = uProfile.name === userName;
+              {(() => {
+                const sortedUsersList = Object.entries(usersList).sort((a, b) => a[0].localeCompare(b[0]));
+                const visibleUsers = usersExpanded ? sortedUsersList : sortedUsersList.slice(0, 2);
                 
-                return (
-                  <div 
-                    key={sid}
-                    className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
-                      isUserAway 
-                        ? 'bg-amber-950/20 border-amber-500/20' 
-                        : isUserOffline 
-                        ? 'bg-slate-900/30 border-slate-800' 
-                        : 'bg-slate-900/50 border-slate-800/60'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        {getUserAvatarSVG(uProfile.name)}
-                        <div className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-[#02040a] ${
-                          isUserAway ? 'bg-amber-500' : isUserOffline ? 'bg-slate-600' : 'bg-emerald-500'
-                        }`} />
-                      </div>
+                return visibleUsers.map(([sid, uProfile]) => {
+                  const isUserAway = uProfile.status === 'Away';
+                  const isUserOffline = uProfile.status === 'Offline';
+                  const isCurrentUser = uProfile.name === userName;
+                  const userIdx = sortedUsersList.findIndex(([sId]) => sId === sid);
+                  
+                  return (
+                    <div 
+                      key={sid}
+                      className={`flex items-center justify-between p-3.5 rounded-xl border transition-all ${
+                        isUserAway 
+                          ? 'bg-amber-950/20 border-amber-500/20' 
+                          : isUserOffline 
+                          ? 'bg-slate-900/30 border-slate-800' 
+                          : 'bg-slate-900/50 border-slate-800/60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          {getUserAvatarSVG(uProfile.name, userIdx)}
+                          <div className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-[#02040a] ${
+                            isUserAway ? 'bg-amber-500' : isUserOffline ? 'bg-slate-600' : 'bg-emerald-500'
+                          }`} />
+                        </div>
                       <div>
                         <div className="font-semibold text-sm text-slate-200 flex items-center flex-wrap">
                           <span>{uProfile.name}</span>
@@ -1937,8 +1956,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                       )}
                     </div>
                   </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
             
             {Object.entries(usersList).some(([sid, up]) => up.status === 'Away' && up.name !== userName) && (
@@ -1983,7 +2003,16 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                       key={msg.id} 
                       className={`flex flex-col max-w-[85%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
                     >
-                      <span className="text-[9px] text-slate-500 font-bold mb-1 px-1">{msg.sender}</span>
+                      <div className={`flex items-center gap-1 mb-1 px-1 select-none ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                        {(() => {
+                          const senderProfileEntry = Object.entries(usersList).find(([sid, up]) => up.name === msg.sender);
+                          const senderSid = senderProfileEntry ? senderProfileEntry[0] : '';
+                          const sortedUsersList = Object.entries(usersList).sort((a, b) => a[0].localeCompare(b[0]));
+                          const senderIdx = sortedUsersList.findIndex(([sid]) => sid === senderSid);
+                          return getUserAvatarSVG(msg.sender, senderIdx !== -1 ? senderIdx : undefined, 'h-4 w-4');
+                        })()}
+                        <span className="text-[9px] text-slate-500 font-bold">{msg.sender}</span>
+                      </div>
                       
                       {msg.text.startsWith('gif:') ? (
                         <div className="rounded-xl overflow-hidden border border-white/[0.08] shadow-lg max-w-[200px] bg-slate-900">
@@ -2183,34 +2212,36 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       )}
       {/* Pending Join Requests (Host perspective) */}
       {isHost && joinRequests.length > 0 && (
-        <div className="fixed bottom-6 left-6 z-[100] flex flex-col gap-3 max-w-sm w-full">
+        <div className="fixed bottom-6 left-6 z-[100] flex flex-col gap-3 max-w-md w-full">
           {joinRequests.map((req) => (
-            <div key={req.requesterSocketId} className="bg-slate-950/95 border border-indigo-500/30 text-white p-4 rounded-2xl shadow-2xl backdrop-blur-md flex flex-col gap-3 animate-slide-up">
-              <div className="flex items-center gap-3">
-                <div className="bg-indigo-500/10 p-2 rounded-xl text-indigo-400">
-                  <Users className="h-5 w-5" />
+            <div key={req.requesterSocketId} className="bg-slate-950/95 border-2 border-indigo-500/40 text-white p-5 rounded-2xl shadow-2xl backdrop-blur-md flex flex-col gap-4 animate-slide-up">
+              <div className="flex items-center gap-4">
+                <div className="bg-indigo-500/10 p-3 rounded-xl text-indigo-400">
+                  <Users className="h-6 w-6" />
                 </div>
                 <div className="text-left">
-                  <h4 className="font-bold text-sm text-slate-200">Join Request</h4>
-                  <p className="text-xs text-slate-400 font-medium">"{req.name}" wants to join the watch lounge.</p>
+                  <h4 className="font-extrabold text-base text-slate-200">Join Request Pending</h4>
+                  <p className="text-xs text-slate-400 font-semibold mt-0.5">"<span className="text-indigo-400 font-bold">{req.name}</span>" is waiting to join the lounge.</p>
                 </div>
               </div>
-              <div className="flex gap-2.5">
+              <div className="flex gap-3">
                 <button
+                  type="button"
                   onClick={() => {
                     socket.current.emit('approve-join-request', { roomCode, requesterSocketId: req.requesterSocketId, name: req.name, approved: true });
                     setJoinRequests(prev => prev.filter(r => r.requesterSocketId !== req.requesterSocketId));
                   }}
-                  className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold text-white transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-bold text-white transition-colors cursor-pointer"
                 >
                   Approve
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     socket.current.emit('approve-join-request', { roomCode, requesterSocketId: req.requesterSocketId, name: req.name, approved: false });
                     setJoinRequests(prev => prev.filter(r => r.requesterSocketId !== req.requesterSocketId));
                   }}
-                  className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 border border-white/[0.06] rounded-xl text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
+                  className="flex-1 py-2.5 px-4 bg-slate-900 hover:bg-slate-800 border border-white/[0.06] rounded-xl text-xs font-bold text-slate-300 transition-colors cursor-pointer"
                 >
                   Deny
                 </button>
