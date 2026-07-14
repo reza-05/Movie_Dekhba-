@@ -46,6 +46,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
   // Copy code feedback state
   const [copied, setCopied] = useState(false);
+  const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [showReadyModal, setShowReadyModal] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
@@ -1392,7 +1393,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                 : isDenied
                 ? 'Your request to join this watch party was declined by the host.'
                 : isKicked
-                ? 'You have been kicked out of this watch party lounge.'
+                ? 'You have been kicked out of this watch party room.'
                 : 'You have been blocked from this watch room by the host.'}
             </p>
           </div>
@@ -1425,7 +1426,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
               onClick={onLeave}
               className="w-full py-3 bg-slate-900 hover:bg-slate-800 border border-white/[0.06] text-slate-300 rounded-2xl font-semibold transition-colors cursor-pointer"
             >
-              Exit Lounge
+              Exit Room
             </button>
           </div>
         </div>
@@ -1478,18 +1479,27 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
         {/* Toolbar Info */}
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-            isHost && joinRequests.length > 0
-              ? 'bg-rose-500/10 text-rose-300 border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.2)]'
-              : 'bg-slate-800/40 text-slate-300 border-slate-700/50'
-          }`}>
+          <button
+            type="button"
+            onClick={() => {
+              if (isHost && joinRequests.length > 0) {
+                setShowRequestsModal(!showRequestsModal);
+              }
+            }}
+            disabled={!isHost || joinRequests.length === 0}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              isHost && joinRequests.length > 0
+                ? 'bg-rose-500/10 text-rose-300 border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.2)] hover:bg-rose-500/25 active:scale-95 cursor-pointer'
+                : 'bg-slate-800/40 text-slate-300 border-slate-700/50 cursor-default select-none'
+            }`}
+          >
             <Users className={`h-3.5 w-3.5 ${
               isHost && joinRequests.length > 0
                 ? 'text-rose-400 animate-scale-pulse'
                 : 'text-indigo-400'
             }`} />
             <span>{Object.keys(usersList).length} {Object.keys(usersList).length === 1 ? 'Viewer' : 'Viewers'}</span>
-          </div>
+          </button>
 
           <button
             onClick={() => setChatOpen(!chatOpen)}
@@ -2169,7 +2179,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Say something to the lounge..."
+                  placeholder="Say something to the room..."
                   className="flex-grow py-2.5 px-4 rounded-xl text-xs text-slate-100 tracking-wide border border-white/[0.06] bg-slate-900/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_12px_rgba(99,102,241,0.12)] placeholder:text-slate-500 transition-all duration-300 outline-none"
                 />
                 <button
@@ -2221,7 +2231,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                 </div>
                 <div className="text-left">
                   <h4 className="font-extrabold text-base text-slate-200">Join Request Pending</h4>
-                  <p className="text-xs text-slate-400 font-semibold mt-0.5">"<span className="text-indigo-400 font-bold">{req.name}</span>" is waiting to join the lounge.</p>
+                  <p className="text-xs text-slate-400 font-semibold mt-0.5">"<span className="text-indigo-400 font-bold">{req.name}</span>" is waiting to join the room.</p>
                 </div>
               </div>
               <div className="flex gap-3">
@@ -2248,6 +2258,66 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Pending Entry Requests Center Modal (Triggered by viewers badge) */}
+      {showRequestsModal && isHost && joinRequests.length > 0 && (
+        <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-gradient-to-b from-[#0f1422] to-[#07090f] border border-white/[0.08] rounded-3xl shadow-2xl p-6 relative animate-scale-up text-left">
+            <button 
+              onClick={() => setShowRequestsModal(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.04] text-slate-400 hover:text-white transition-all cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="font-extrabold text-base text-white tracking-wide mb-1">Pending Entry Requests</h3>
+            <p className="text-xs text-slate-400 mb-4">Review and approve guests waiting to enter the watch room.</p>
+            
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+              {joinRequests.map((req) => (
+                <div key={req.requesterSocketId} className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-white/[0.04] rounded-xl gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-8 w-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+                      <Users className="h-4.5 w-4.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-bold text-xs text-slate-200 block truncate">{req.name}</span>
+                      <span className="block text-[9px] text-slate-500 uppercase tracking-wider font-semibold">Guest</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        socket.current.emit('approve-join-request', { roomCode, requesterSocketId: req.requesterSocketId, name: req.name, approved: true });
+                        setJoinRequests(prev => {
+                          const updated = prev.filter(r => r.requesterSocketId !== req.requesterSocketId);
+                          if (updated.length === 0) setShowRequestsModal(false);
+                          return updated;
+                        });
+                      }}
+                      className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => {
+                        socket.current.emit('approve-join-request', { roomCode, requesterSocketId: req.requesterSocketId, name: req.name, approved: false });
+                        setJoinRequests(prev => {
+                          const updated = prev.filter(r => r.requesterSocketId !== req.requesterSocketId);
+                          if (updated.length === 0) setShowRequestsModal(false);
+                          return updated;
+                        });
+                      }}
+                      className="py-1.5 px-3 bg-slate-900 hover:bg-slate-800 border border-white/[0.06] text-slate-300 font-bold text-[10px] rounded-lg transition-colors cursor-pointer"
+                    >
+                      Deny
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>

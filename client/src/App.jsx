@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import TheatreRoom from './components/TheatreRoom';
-import { Film, User, Key, Sparkles, ArrowRight, Zap, Tv, FolderOpen, Lock, Menu, X, HelpCircle, Info, ChevronRight, Play } from 'lucide-react';
+import { Film, User, Key, Sparkles, ArrowRight, Zap, Tv, FolderOpen, Lock, Menu, X, HelpCircle, Info, ChevronRight, Play, Settings } from 'lucide-react';
 
 // Error Boundary to catch render-time issues in TheatreRoom
 class ErrorBoundary extends React.Component {
@@ -549,11 +549,11 @@ function App() {
               {/* Title */}
               <div className="flex items-center gap-3">
                 <div className="bg-indigo-500/10 p-2.5 rounded-xl border border-indigo-500/20 text-indigo-400">
-                  <Film className="h-5 w-5" />
+                  <Film className="h-5.5 w-5.5" />
                 </div>
                 <div className="text-left">
-                  <h3 className="font-extrabold text-sm text-white tracking-wide">Lounge Guide</h3>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Information Desk</p>
+                  <h3 className="font-black text-base text-white tracking-wide">Room Guide</h3>
+                  <p className="text-[11px] text-slate-500 uppercase tracking-wider font-bold">Information Desk</p>
                 </div>
               </div>
 
@@ -562,121 +562,121 @@ function App() {
                 <button
                   type="button"
                   onClick={() => setInfoActiveTab('how-it-works')}
-                  className={`flex items-center gap-3 py-3 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-3 py-3.5 px-4.5 rounded-xl text-sm font-extrabold transition-all whitespace-nowrap cursor-pointer ${
                     infoActiveTab === 'how-it-works'
                       ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-600/10'
                       : 'text-slate-400 hover:text-slate-200 bg-white/[0.01] hover:bg-white/[0.03]'
                   }`}
                 >
-                  <Sparkles className="h-4 w-4 shrink-0" />
+                  <Settings className="h-4.5 w-4.5 shrink-0" />
                   <span>How It Works</span>
                 </button>
                 
                 <button
                   type="button"
                   onClick={() => setInfoActiveTab('faq')}
-                  className={`flex items-center gap-3 py-3 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-3 py-3.5 px-4.5 rounded-xl text-sm font-extrabold transition-all whitespace-nowrap cursor-pointer ${
                     infoActiveTab === 'faq'
                       ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-600/10'
                       : 'text-slate-400 hover:text-slate-200 bg-white/[0.01] hover:bg-white/[0.03]'
                   }`}
                 >
-                  <HelpCircle className="h-4 w-4 shrink-0" />
+                  <HelpCircle className="h-4.5 w-4.5 shrink-0" />
                   <span>FAQ</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setInfoActiveTab('about')}
-                  className={`flex items-center gap-3 py-3 px-4 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-3 py-3.5 px-4.5 rounded-xl text-sm font-extrabold transition-all whitespace-nowrap cursor-pointer ${
                     infoActiveTab === 'about'
                       ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-600/10'
                       : 'text-slate-400 hover:text-slate-200 bg-white/[0.01] hover:bg-white/[0.03]'
                   }`}
                 >
-                  <Info className="h-4 w-4 shrink-0" />
+                  <Info className="h-4.5 w-4.5 shrink-0" />
                   <span>About Us</span>
                 </button>
               </div>
             </div>
 
             {/* Right Pane (Content Scroll Area) */}
-            <div className="flex-grow p-6 sm:p-8 overflow-y-auto select-text text-left">
+            <div className="flex-grow p-8 sm:p-10 overflow-y-auto select-text text-left">
               {infoActiveTab === 'how-it-works' && (
                 <div className="space-y-8 animate-fade-in">
                   <div>
-                    <h2 className="text-xl font-black text-white tracking-tight mb-2">How It Works</h2>
-                    <p className="text-xs text-slate-400">Follow these simple steps to sync and watch movies with friends instantly.</p>
+                    <h2 className="text-2xl font-black text-white tracking-tight mb-2">How It Works</h2>
+                    <p className="text-sm text-slate-400">Follow these simple steps to sync and watch movies with friends instantly.</p>
                   </div>
 
                   <div className="grid grid-cols-1 gap-6">
                     {/* Step 1 */}
-                    <div className="bg-white/[0.02] border border-white/[0.04] p-5 rounded-2xl flex flex-col gap-4">
+                    <div className="bg-white/[0.02] border border-white/[0.04] p-6 rounded-2xl flex flex-col gap-4">
                       <div className="flex items-start gap-4">
-                        <div className="h-8 w-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-sm shrink-0">1</div>
+                        <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-base shrink-0">1</div>
                         <div>
-                          <h4 className="font-extrabold text-sm text-slate-200">Host or Join a Lounge</h4>
-                          <p className="text-[11px] text-slate-400/90 mt-1">
-                            Choose <span className="text-indigo-400 font-semibold">Host Room</span>, enter your display name, choose your access mode, and click create. To join an existing room, select <span className="text-indigo-400 font-semibold">Join Room</span> and enter the 6-character room code.
+                          <h4 className="font-extrabold text-base text-slate-200">Host or Join a Room</h4>
+                          <p className="text-[13px] text-slate-400/95 leading-relaxed mt-1">
+                            Choose <span className="text-indigo-400 font-bold">Host Room</span>, enter your display name, choose your access mode, and click create. To join an existing room, select <span className="text-indigo-400 font-bold">Join Room</span> and enter the 6-character room code.
                           </p>
                         </div>
                       </div>
                       
                       {/* Step 1 Wireframe Visual mockup */}
-                      <div className="bg-slate-950/60 border border-white/[0.04] rounded-xl p-3 flex flex-col gap-2 max-w-sm mx-auto w-full select-none">
+                      <div className="bg-slate-950/60 border border-white/[0.04] rounded-xl p-3.5 flex flex-col gap-2 max-w-sm mx-auto w-full select-none">
                         <div className="flex gap-2 p-1 bg-slate-900/60 rounded-lg border border-white/[0.02]">
-                          <div className="flex-1 py-1 text-[9px] font-bold text-center bg-indigo-600 text-white rounded">Host Room</div>
-                          <div className="flex-1 py-1 text-[9px] font-bold text-center text-slate-500">Join Room</div>
+                          <div className="flex-1 py-1 text-[10px] font-bold text-center bg-indigo-600 text-white rounded">Host Room</div>
+                          <div className="flex-1 py-1 text-[10px] font-bold text-center text-slate-500">Join Room</div>
                         </div>
-                        <div className="h-6 bg-slate-900/40 border border-white/[0.04] rounded-lg px-2 flex items-center justify-between">
-                          <span className="text-[9px] text-slate-500">Display Name</span>
-                          <span className="text-[8px] px-1 bg-white/[0.03] rounded text-slate-600">Name</span>
+                        <div className="h-7 bg-slate-900/40 border border-white/[0.04] rounded-lg px-2.5 flex items-center justify-between">
+                          <span className="text-[10px] text-slate-500">Display Name</span>
+                          <span className="text-[9px] px-1 bg-white/[0.03] rounded text-slate-600">Name</span>
                         </div>
-                        <div className="py-1 bg-indigo-600 text-[9px] font-extrabold text-center text-white rounded-lg">Host a New Room</div>
+                        <div className="py-1.5 bg-indigo-600 text-[10px] font-extrabold text-center text-white rounded-lg">Host a New Room</div>
                       </div>
                     </div>
 
                     {/* Step 2 */}
-                    <div className="bg-white/[0.02] border border-white/[0.04] p-5 rounded-2xl flex flex-col gap-4">
+                    <div className="bg-white/[0.02] border border-white/[0.04] p-6 rounded-2xl flex flex-col gap-4">
                       <div className="flex items-start gap-4">
-                        <div className="h-8 w-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-sm shrink-0">2</div>
+                        <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-base shrink-0">2</div>
                         <div>
-                          <h4 className="font-extrabold text-sm text-slate-200">Share Room Code</h4>
-                          <p className="text-[11px] text-slate-400/90 mt-1">
-                            Once inside the lounge, copy the room code displayed in the header and send it to your friends. If you enabled <span className="text-indigo-400 font-semibold">Host Approval</span> mode, you will receive an alert popup to Approve or Deny incoming guests.
+                          <h4 className="font-extrabold text-base text-slate-200">Share Room Code</h4>
+                          <p className="text-[13px] text-slate-400/95 leading-relaxed mt-1">
+                            Once inside the room, copy the room code displayed in the header and send it to your friends. If you enabled <span className="text-indigo-400 font-bold">Host Approval</span> mode, you will receive an alert popup to Approve or Deny incoming guests.
                           </p>
                         </div>
                       </div>
 
                       {/* Step 2 Wireframe Visual mockup */}
-                      <div className="bg-slate-950/60 border border-white/[0.04] rounded-xl p-3 flex items-center justify-between max-w-sm mx-auto w-full select-none">
+                      <div className="bg-slate-950/60 border border-white/[0.04] rounded-xl p-3.5 flex items-center justify-between max-w-sm mx-auto w-full select-none">
                         <div className="flex items-center gap-1.5">
-                          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                          <span className="text-[9px] font-bold text-slate-400">Room Code: ABCXYZ</span>
+                          <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[10px] font-bold text-slate-400">Room Code: ABCXYZ</span>
                         </div>
-                        <div className="py-1 px-2.5 bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-bold text-indigo-400 rounded-lg">Copy Code</div>
+                        <div className="py-1 px-2.5 bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-400 rounded-lg">Copy Code</div>
                       </div>
                     </div>
 
                     {/* Step 3 */}
-                    <div className="bg-white/[0.02] border border-white/[0.04] p-5 rounded-2xl flex flex-col gap-4">
+                    <div className="bg-white/[0.02] border border-white/[0.04] p-6 rounded-2xl flex flex-col gap-4">
                       <div className="flex items-start gap-4">
-                        <div className="h-8 w-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-sm shrink-0">3</div>
+                        <div className="h-9 w-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center font-black text-base shrink-0">3</div>
                         <div>
-                          <h4 className="font-extrabold text-sm text-slate-200">Sync & Stream Media</h4>
-                          <p className="text-[11px] text-slate-400/90 mt-1">
+                          <h4 className="font-extrabold text-base text-slate-200">Sync & Stream Media</h4>
+                          <p className="text-[13px] text-slate-400/95 leading-relaxed mt-1">
                             As the host, select your movie source (Drag and Drop a local video file, input a direct cloud streaming URL, or load a YouTube link). Playback actions (Play, Pause, Seek) will automatically sync across everyone's screens instantly!
                           </p>
                         </div>
                       </div>
 
                       {/* Step 3 Wireframe Visual mockup */}
-                      <div className="bg-slate-950/60 border border-white/[0.04] rounded-xl p-3 flex flex-col gap-2 max-w-sm mx-auto w-full select-none">
+                      <div className="bg-slate-950/60 border border-white/[0.04] rounded-xl p-3.5 flex flex-col gap-2 max-w-sm mx-auto w-full select-none">
                         <div className="aspect-[16/9] bg-slate-900/60 rounded-lg flex items-center justify-center border border-white/[0.02] relative overflow-hidden">
-                          <Play className="h-6 w-6 text-indigo-500/60 animate-pulse animate-[pulse_2s_infinite]" />
-                          <div className="absolute bottom-1 right-2 px-1 py-0.5 bg-[#02040a]/60 text-[8px] text-indigo-400 rounded font-bold">01:45:20</div>
+                          <Play className="h-7 w-7 text-indigo-500/60 animate-pulse" />
+                          <div className="absolute bottom-1 right-2 px-1.5 py-0.5 bg-[#02040a]/60 text-[9px] text-indigo-400 rounded font-bold">01:45:20</div>
                         </div>
-                        <div className="flex items-center justify-between text-[8px] text-slate-500 font-bold px-1">
+                        <div className="flex items-center justify-between text-[9px] text-slate-500 font-bold px-1">
                           <span>Real-Time Playback Syncing</span>
                           <span className="text-emerald-500">Connected</span>
                         </div>
@@ -689,35 +689,35 @@ function App() {
               {infoActiveTab === 'faq' && (
                 <div className="space-y-6 animate-fade-in">
                   <div>
-                    <h2 className="text-xl font-black text-white tracking-tight mb-2">Frequently Asked Questions</h2>
-                    <p className="text-xs text-slate-400">Quick answers to common questions about movie syncing and streaming operations.</p>
+                    <h2 className="text-2xl font-black text-white tracking-tight mb-2">Frequently Asked Questions</h2>
+                    <p className="text-sm text-slate-400">Quick answers to common questions about movie syncing and streaming operations.</p>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="p-5 bg-white/[0.01] border border-white/[0.03] rounded-2xl">
-                      <h4 className="font-extrabold text-xs text-indigo-400 uppercase tracking-wider mb-2">Q: Do guests need to upload the movie file too?</h4>
-                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                    <div className="p-6 bg-white/[0.01] border border-white/[0.03] rounded-2xl">
+                      <h4 className="font-extrabold text-sm text-indigo-400 uppercase tracking-wider mb-2">Q: Do guests need to upload the movie file too?</h4>
+                      <p className="text-[13px] text-slate-300 leading-relaxed">
                         If you are streaming from a direct cloud URL or YouTube, guests will load it instantly. For local files, they stream directly from your browser via peer-to-peer WebRTC channels; for absolute bufferless performance, we recommend guests drag-and-drop the same file locally if they have it, allowing direct instant sync without downloading!
                       </p>
                     </div>
 
-                    <div className="p-5 bg-white/[0.01] border border-white/[0.03] rounded-2xl">
-                      <h4 className="font-extrabold text-xs text-indigo-400 uppercase tracking-wider mb-2">Q: Are my media files stored permanently on the server?</h4>
-                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                    <div className="p-6 bg-white/[0.01] border border-white/[0.03] rounded-2xl">
+                      <h4 className="font-extrabold text-sm text-indigo-400 uppercase tracking-wider mb-2">Q: Are my media files stored permanently on the server?</h4>
+                      <p className="text-[13px] text-slate-300 leading-relaxed">
                         No. Your local peer-to-peer files never touch any cloud storage. If you choose to upload files to Cloudflare storage to stream to friends, they are protected by temporary pre-signed credentials and are programmatically deleted and recycled after 4 hours to keep the servers light and storage limits clean.
                       </p>
                     </div>
 
-                    <div className="p-5 bg-white/[0.01] border border-white/[0.03] rounded-2xl">
-                      <h4 className="font-extrabold text-xs text-indigo-400 uppercase tracking-wider mb-2">Q: Can anyone join my private watch room?</h4>
-                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                    <div className="p-6 bg-white/[0.01] border border-white/[0.03] rounded-2xl">
+                      <h4 className="font-extrabold text-sm text-indigo-400 uppercase tracking-wider mb-2">Q: Can anyone join my private watch room?</h4>
+                      <p className="text-[13px] text-slate-300 leading-relaxed">
                         No. Only users with the unique 6-character room code can attempt to enter. If you want maximum control, enable "Host Approval" mode when creating the room to review and screen every guest before letting them enter.
                       </p>
                     </div>
 
-                    <div className="p-5 bg-white/[0.01] border border-white/[0.03] rounded-2xl">
-                      <h4 className="font-extrabold text-xs text-indigo-400 uppercase tracking-wider mb-2">Q: Can I kick someone out permanently?</h4>
-                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                    <div className="p-6 bg-white/[0.01] border border-white/[0.03] rounded-2xl">
+                      <h4 className="font-extrabold text-sm text-indigo-400 uppercase tracking-wider mb-2">Q: Can I kick someone out permanently?</h4>
+                      <p className="text-[13px] text-slate-300 leading-relaxed">
                         Yes. Room hosts can click the menu icon beside any user in the sidebar and choose to block them. Once kicked, they are blocked by their persistent browser device signature and IP address, meaning they cannot rejoin by simply changing their name.
                       </p>
                     </div>
@@ -728,29 +728,29 @@ function App() {
               {infoActiveTab === 'about' && (
                 <div className="space-y-6 animate-fade-in">
                   <div>
-                    <h2 className="text-xl font-black text-white tracking-tight mb-2">About Us</h2>
-                    <p className="text-xs text-slate-400">Discover the technology behind Movie Dekhba and the developers who brought it to life.</p>
+                    <h2 className="text-2xl font-black text-white tracking-tight mb-2">About Us</h2>
+                    <p className="text-sm text-slate-400">Discover the technology behind Movie Dekhba and the developers who brought it to life.</p>
                   </div>
 
                   <div className="space-y-6">
                     <div className="p-6 bg-gradient-to-br from-indigo-600/5 to-violet-600/5 border border-indigo-500/10 rounded-2xl space-y-4">
-                      <h3 className="font-extrabold text-sm text-slate-200">The Watch Lounge Experience</h3>
-                      <p className="text-[11px] text-slate-300 leading-relaxed">
-                        Movie Dekhba is a highly-optimized watch party application designed to bring friends together through synchronized cinema. Leveraging standard WebRTC data channels for browser-to-browser coordination and Cloudflare pre-signed storage pipelines, it provides a premium theatre lounge experience directly on the web with zero setup.
+                      <h3 className="font-extrabold text-base text-slate-200">The Watch Room Experience</h3>
+                      <p className="text-[13px] text-slate-300 leading-relaxed">
+                        Movie Dekhba is a highly-optimized watch party application designed to bring friends together through synchronized cinema. Leveraging standard WebRTC data channels for browser-to-browser coordination and Cloudflare pre-signed storage pipelines, it provides a premium theatre room experience directly on the web with zero setup.
                       </p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="p-5 bg-white/[0.01] border border-white/[0.03] rounded-2xl space-y-3 text-left">
-                        <h4 className="font-extrabold text-xs text-indigo-400 uppercase tracking-wider">Our Philosophy</h4>
-                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                      <div className="p-6 bg-white/[0.01] border border-white/[0.03] rounded-2xl space-y-3 text-left">
+                        <h4 className="font-extrabold text-sm text-indigo-400 uppercase tracking-wider">Our Philosophy</h4>
+                        <p className="text-[13px] text-slate-400 leading-relaxed">
                           We believe synchronized entertainment should be simple, private, and buffer-free. We build zero-tracking networks that respect user privacy, prioritizing peer-to-peer data pathways instead of server-side data extraction.
                         </p>
                       </div>
                       
-                      <div className="p-5 bg-white/[0.01] border border-white/[0.03] rounded-2xl space-y-3 text-left">
-                        <h4 className="font-extrabold text-xs text-indigo-400 uppercase tracking-wider">The Engineering</h4>
-                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                      <div className="p-6 bg-white/[0.01] border border-white/[0.03] rounded-2xl space-y-3 text-left">
+                        <h4 className="font-extrabold text-sm text-indigo-400 uppercase tracking-wider">The Engineering</h4>
+                        <p className="text-[13px] text-slate-400 leading-relaxed">
                           Developed by Reza. Constructed utilizing modern React architectures, Tailwind CSS responsive layouts, secure Node.js sockets, and AWS S3-compatible cloud storage buckets with automated programmatic garbage collection.
                         </p>
                       </div>
