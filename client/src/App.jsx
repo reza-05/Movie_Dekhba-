@@ -234,11 +234,11 @@ function App() {
           <div className="lg:col-span-7 space-y-5 lg:space-y-6 text-center lg:text-left transform lg:-translate-y-4">
             <div className="animate-slide-up [animation-delay:100ms] [animation-fill-mode:forwards]">
               <h1 
-                className="font-black text-white"
+                className="font-extrabold text-white"
                 style={{
-                  fontSize: 'clamp(2.25rem, 6.2vw - 0.5rem, 5.25rem)',
-                  lineHeight: '1.02',
-                  letterSpacing: '-0.04em'
+                  fontSize: 'clamp(2.25rem, 6.2vw - 0.5rem, 5rem)',
+                  lineHeight: '1.08',
+                  letterSpacing: '-0.02em'
                 }}
               >
                 Watch movies{" "}<br className="hidden lg:block" />
