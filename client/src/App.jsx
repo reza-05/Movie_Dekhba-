@@ -269,7 +269,7 @@ function App() {
             </svg>
           </div>
           <span 
-            className="text-xs tracking-[0.22em] uppercase font-bold animate-text-flicker select-none ml-[-4px]"
+            className="text-xs tracking-[0.22em] uppercase font-black animate-text-flicker select-none ml-[-4px]"
             style={{ fontFamily: '"Outfit", sans-serif' }}
           >
             Movie Dekhba
