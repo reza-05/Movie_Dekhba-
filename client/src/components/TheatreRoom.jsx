@@ -3,7 +3,8 @@ import { io } from 'socket.io-client';
 import { 
   Play, Pause, Volume2, Users, Send, Video, 
   ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles,
-  RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles, ChevronLeft, ChevronRight
+  RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles, ChevronLeft, ChevronRight,
+  MoreVertical
 } from 'lucide-react';
 
 function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
@@ -24,6 +25,11 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
   const [videoName, setVideoName] = useState('');
   const [isHost, setIsHost] = useState(initialRoomCode === 'CREATE');
+  const [hostId, setHostId] = useState('');
+  const [isBanned, setIsBanned] = useState(false);
+  const [isKicked, setIsKicked] = useState(false);
+  const [joinRequestStatus, setJoinRequestStatus] = useState(null); // null, 'sending', 'sent', 'denied'
+  const [joinRequests, setJoinRequests] = useState([]); // [{ name, requesterSocketId, roomCode }]
   const [bufferStatus, setBufferStatus] = useState('');
   const [transferProgress, setTransferProgress] = useState(0);
   
@@ -63,6 +69,91 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
   const initialVideoState = useRef(null);
 
+  const [activeDropdownUser, setActiveDropdownUser] = useState(null);
+
+  const getUserAvatarSVG = (name) => {
+    // Generate a simple hash from the username
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    hash = Math.abs(hash);
+
+    // Dynamic distinct colors for premium look
+    const colors = [
+      { stroke: '#fda4af', eyes: '#f43f5e' }, // Pink
+      { stroke: '#fde047', eyes: '#ea580c' }, // Orange/Amber
+      { stroke: '#6ee7b7', eyes: '#059669' }, // Emerald/Teal
+      { stroke: '#93c5fd', eyes: '#2563eb' }, // Blue
+      { stroke: '#d8b4fe', eyes: '#7c3aed' }, // Purple
+      { stroke: '#67e8f9', eyes: '#0891b2' }, // Cyan/Sky
+      { stroke: '#f0abfc', eyes: '#c026d3' }, // Fuchsia
+      { stroke: '#bef264', eyes: '#4d7c0f' }  // Lime
+    ];
+
+    const color = colors[hash % colors.length];
+    
+    // Choose robot body/face style based on hash
+    const bodyStyles = [
+      // Style 0: Classic Square Face
+      <g key="sq">
+        <rect x="25" y="30" width="50" height="40" rx="8" fill="url(#bot-grad)" stroke={color.stroke} strokeWidth="3" />
+        <rect x="35" y="42" width="10" height="10" rx="2" fill="#ffffff" />
+        <rect x="55" y="42" width="10" height="10" rx="2" fill="#ffffff" />
+        <circle cx="40" cy="47" r="3" fill={color.eyes} />
+        <circle cx="60" cy="47" r="3" fill={color.eyes} />
+        <path d="M 40 60 Q 50 66 60 60" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" fill="none" />
+      </g>,
+      // Style 1: Cyber Visor Face
+      <g key="cy">
+        <rect x="25" y="30" width="50" height="40" rx="8" fill="url(#bot-grad)" stroke={color.stroke} strokeWidth="3" />
+        <rect x="30" y="42" width="40" height="10" rx="3" fill="#0f172a" stroke={color.stroke} strokeWidth="1.5" />
+        <line x1="34" y1="47" x2="66" y2="47" stroke="#38bdf8" strokeWidth="2" strokeLinecap="round" className="animate-pulse" />
+        <path d="M 44 60 H 56" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
+      </g>,
+      // Style 2: Cute Round Face
+      <g key="rd">
+        <circle cx="50" cy="50" r="22" fill="url(#bot-grad)" stroke={color.stroke} strokeWidth="3" />
+        <ellipse cx="38" cy="46" rx="5" ry="7" fill="#ffffff" />
+        <ellipse cx="62" cy="46" rx="5" ry="7" fill="#ffffff" />
+        <circle cx="38" cy="46" r="2.5" fill={color.eyes} />
+        <circle cx="62" cy="46" r="2.5" fill={color.eyes} />
+        <path d="M 45 58 Q 50 62 55 58" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      </g>,
+      // Style 3: Vintage TV Screen
+      <g key="tv">
+        <rect x="22" y="32" width="56" height="36" rx="4" fill="url(#bot-grad)" stroke={color.stroke} strokeWidth="3" />
+        <line x1="50" y1="32" x2="40" y2="18" stroke={color.stroke} strokeWidth="2" />
+        <line x1="50" y1="32" x2="60" y2="18" stroke={color.stroke} strokeWidth="2" />
+        <rect x="30" y="38" width="40" height="22" rx="2" fill="#0f172a" />
+        <circle cx="40" cy="49" r="3.5" fill={color.eyes} />
+        <circle cx="60" cy="49" r="3.5" fill={color.eyes} />
+        <line x1="45" y1="50" x2="55" y2="50" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" />
+      </g>
+    ];
+
+    const bodyStyle = bodyStyles[hash % bodyStyles.length];
+
+    return (
+      <svg className="h-9 w-9 rounded-lg bg-slate-950 border border-slate-800/80 p-0.5" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bot-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#1e293b" />
+            <stop offset="100%" stopColor="#0f172a" />
+          </linearGradient>
+        </defs>
+        
+        {/* Antennas / Ears */}
+        <circle cx="16" cy="50" r="3.5" fill={color.eyes} />
+        <circle cx="84" cy="50" r="3.5" fill={color.eyes} />
+        <line x1="16" y1="50" x2="26" y2="50" stroke={color.stroke} strokeWidth="2" />
+        <line x1="84" y1="50" x2="74" y2="50" stroke={color.stroke} strokeWidth="2" />
+        
+        {bodyStyle}
+      </svg>
+    );
+  };
+
   // References
   const socket = useRef(null);
   const videoRef = useRef(null);
@@ -97,18 +188,22 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       }
     });
 
-    socket.current.on('room-created', ({ roomCode: code, users }) => {
+    socket.current.on('room-created', ({ roomCode: code, users, hostId: serverHostId }) => {
       setRoomCode(code);
       setUsersList(users);
-      setIsHost(true);
+      setHostId(serverHostId);
+      setIsHost(serverHostId === socket.current.id);
     });
 
-    socket.current.on('room-updated', ({ roomCode: code, users, videoState, fileName, fileSize, youtubeUrl: sharedYtUrl, cloudUrl }) => {
+    socket.current.on('room-updated', ({ roomCode: code, users, hostId: serverHostId, videoState, fileName, fileSize, youtubeUrl: sharedYtUrl, cloudUrl }) => {
       setRoomCode(code);
       setUsersList(users);
+      setHostId(serverHostId);
+      const currentIsHost = serverHostId === socket.current.id;
+      setIsHost(currentIsHost);
       
       // Host side readiness state management
-      if (initialRoomCode === 'CREATE') {
+      if (currentIsHost) {
         if (Object.keys(users).length < 2) {
           setIsGuestReady(false);
           setGuestProgress(0);
@@ -129,7 +224,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       }
       
       // Guest side: If Host has already chosen a file or YouTube stream, start it!
-      if (initialRoomCode !== 'CREATE' && fileName && !videoSrcRef.current) {
+      if (!currentIsHost && fileName && !videoSrcRef.current) {
         setVideoName(fileName);
         if (sharedYtUrl) {
           setYoutubeUrl(sharedYtUrl);
@@ -150,9 +245,42 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       onLeave();
     });
 
+    socket.current.on('banned-error', ({ message }) => {
+      setIsBanned(true);
+      setJoinRequestStatus(null);
+    });
+
+    socket.current.on('join-request-approved', () => {
+      setIsBanned(false);
+      setJoinRequestStatus('approved');
+      if (socket.current) {
+        socket.current.emit('join-room', {
+          roomCode: initialRoomCode,
+          name: userName
+        });
+      }
+    });
+
+    socket.current.on('join-request-denied', () => {
+      setJoinRequestStatus('denied');
+    });
+
+    socket.current.on('kicked-from-room', () => {
+      setIsKicked(true);
+    });
+
+    socket.current.on('join-request-received', ({ name, requesterSocketId }) => {
+      setJoinRequests(prev => {
+        // Avoid duplicate requests in UI
+        if (prev.some(r => r.requesterSocketId === requesterSocketId)) return prev;
+        return [...prev, { name, requesterSocketId }];
+      });
+    });
+
     // Listen for Host sharing a movie file metadata
     socket.current.on('share-torrent', ({ fileName, fileSize, youtubeUrl: sharedYtUrl, cloudUrl }) => {
-      if (initialRoomCode !== 'CREATE') {
+      const currentIsHost = socket.current && hostId === socket.current.id;
+      if (!currentIsHost) {
         // Reset local stream transfer caches
         transferActive.current = false;
         receivedChunksMap.current = {};
@@ -1116,6 +1244,69 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  if (isBanned || isKicked) {
+    return (
+      <div className="min-h-screen bg-[#02040a] flex items-center justify-center p-6 relative">
+        <div className="fixed inset-0 overflow-hidden pointer-events-none -z-20 flex justify-center items-center opacity-[0.15] select-none">
+          <div className="w-[140%] h-[140%] grid grid-cols-5 gap-4 animate-cinematic-wall">
+            <div className="bg-slate-900/30 rounded-xl animate-pulse" />
+            <div className="bg-slate-900/30 rounded-xl" />
+            <div className="bg-slate-900/30 rounded-xl animate-pulse" />
+            <div className="bg-slate-900/30 rounded-xl" />
+            <div className="bg-slate-900/30 rounded-xl animate-pulse" />
+          </div>
+        </div>
+        
+        <div className="w-full max-w-md bg-slate-950/60 border border-white/[0.04] backdrop-blur-xl p-8 rounded-3xl shadow-2xl text-center flex flex-col items-center gap-6 animate-scale-up">
+          <div className="p-4 bg-rose-500/10 text-rose-500 rounded-2xl border border-rose-500/20">
+            <ShieldAlert className="h-8 w-8" />
+          </div>
+          
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-white mb-2">
+              {isKicked ? 'Kicked from Room' : 'Access Denied'}
+            </h2>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              {isKicked 
+                ? 'You have been kicked out of this watch party lounge.' 
+                : joinRequestStatus === 'denied'
+                ? 'Your request to re-join was denied by the Host.'
+                : 'You have been blocked from this watch room by the Host.'}
+            </p>
+          </div>
+
+          <div className="w-full flex flex-col gap-3">
+            {!isKicked && joinRequestStatus !== 'sent' && joinRequestStatus !== 'sending' && (
+              <button
+                onClick={() => {
+                  setJoinRequestStatus('sending');
+                  socket.current.emit('request-join-approval', { roomCode: initialRoomCode, name: userName });
+                  setJoinRequestStatus('sent');
+                }}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-semibold transition-colors cursor-pointer"
+              >
+                {joinRequestStatus === 'denied' ? 'Request Again' : 'Request to Join'}
+              </button>
+            )}
+            
+            {joinRequestStatus === 'sent' && (
+              <div className="w-full py-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 animate-pulse">
+                <span>Waiting for Host approval...</span>
+              </div>
+            )}
+
+            <button
+              onClick={onLeave}
+              className="w-full py-3 bg-slate-900 hover:bg-slate-800 border border-white/[0.06] text-slate-300 rounded-2xl font-semibold transition-colors cursor-pointer"
+            >
+              Exit Room
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#02040a] flex flex-col text-slate-100 font-sans">
       {/* Room Header */}
@@ -1535,24 +1726,26 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                   >
                     <div className="flex items-center gap-3">
                       <div className="relative">
-                        <img 
-                          src={`https://api.dicebear.com/7.x/bottts/svg?seed=${uProfile.name}`} 
-                          alt={uProfile.name} 
-                          className="h-9 w-9 rounded-lg bg-slate-800 border border-slate-700/50"
-                        />
-                        <div className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-[#070b13] ${
+                        {getUserAvatarSVG(uProfile.name)}
+                        <div className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-[#02040a] ${
                           isUserAway ? 'bg-amber-500' : isUserOffline ? 'bg-slate-600' : 'bg-emerald-500'
                         }`} />
                       </div>
                       <div>
-                        <div className="font-semibold text-sm text-slate-200">
-                          {uProfile.name} {isCurrentUser ? '(You)' : ''}
+                        <div className="font-semibold text-sm text-slate-200 flex items-center flex-wrap">
+                          <span>{uProfile.name}</span>
+                          {isCurrentUser && <span className="text-slate-500 ml-1">(You)</span>}
+                          {sid === hostId && (
+                            <span className="text-[9px] uppercase font-extrabold tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded ml-1.5">
+                              Host
+                            </span>
+                          )}
                         </div>
                         <p className="text-xs text-slate-500">Status: {uProfile.status}</p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                         isUserAway 
                           ? 'bg-amber-500/10 text-amber-400' 
@@ -1562,6 +1755,42 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
                       }`}>
                         {uProfile.status}
                       </span>
+                      
+                      {/* Host Actions (3-dot Dropdown) */}
+                      {isHost && sid !== socket.current?.id && (
+                        <div className="relative">
+                          <button 
+                            onClick={() => setActiveDropdownUser(activeDropdownUser === sid ? null : sid)}
+                            className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                          {activeDropdownUser === sid && (
+                            <div className="absolute right-0 mt-1 w-32 bg-slate-950/95 border border-white/[0.08] backdrop-blur-md rounded-xl py-1.5 shadow-xl z-50 animate-scale-up">
+                              <button
+                                onClick={() => {
+                                  socket.current.emit('make-host', { targetSocketId: sid });
+                                  setActiveDropdownUser(null);
+                                }}
+                                className="w-full text-left px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                              >
+                                <Users className="h-3.5 w-3.5 text-indigo-400" />
+                                Make Host
+                              </button>
+                              <button
+                                onClick={() => {
+                                  socket.current.emit('kick-user', { targetSocketId: sid });
+                                  setActiveDropdownUser(null);
+                                }}
+                                className="w-full text-left px-3 py-1.5 text-xs font-semibold text-rose-400 hover:bg-rose-950/20 hover:text-rose-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+                              >
+                                <X className="h-3.5 w-3.5 text-rose-500" />
+                                Kick Out
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -1691,6 +1920,44 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               <span>Watch Now</span>
             </button>
           </div>
+        </div>
+      )}
+      {/* Pending Join Requests (Host perspective) */}
+      {isHost && joinRequests.length > 0 && (
+        <div className="fixed bottom-6 left-6 z-[100] flex flex-col gap-3 max-w-sm w-full">
+          {joinRequests.map((req) => (
+            <div key={req.requesterSocketId} className="bg-slate-950/95 border border-indigo-500/30 text-white p-4 rounded-2xl shadow-2xl backdrop-blur-md flex flex-col gap-3 animate-slide-up">
+              <div className="flex items-center gap-3">
+                <div className="bg-indigo-500/10 p-2 rounded-xl text-indigo-400">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <h4 className="font-bold text-sm text-slate-200">Join Request</h4>
+                  <p className="text-xs text-slate-400 font-medium">"{req.name}" wants to join the watch lounge.</p>
+                </div>
+              </div>
+              <div className="flex gap-2.5">
+                <button
+                  onClick={() => {
+                    socket.current.emit('approve-join-request', { roomCode, requesterSocketId: req.requesterSocketId, name: req.name, approved: true });
+                    setJoinRequests(prev => prev.filter(r => r.requesterSocketId !== req.requesterSocketId));
+                  }}
+                  className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-xs font-semibold text-white transition-colors cursor-pointer"
+                >
+                  Approve
+                </button>
+                <button
+                  onClick={() => {
+                    socket.current.emit('approve-join-request', { roomCode, requesterSocketId: req.requesterSocketId, name: req.name, approved: false });
+                    setJoinRequests(prev => prev.filter(r => r.requesterSocketId !== req.requesterSocketId));
+                  }}
+                  className="flex-1 py-2 px-3 bg-slate-900 hover:bg-slate-800 border border-white/[0.06] rounded-xl text-xs font-semibold text-slate-300 transition-colors cursor-pointer"
+                >
+                  Deny
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

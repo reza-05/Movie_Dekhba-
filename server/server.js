@@ -117,6 +117,8 @@ io.on('connection', (socket) => {
     userProfile = { name, status: 'Active' };
     const roomData = {
       code: roomCode,
+      hostId: socket.id,
+      bannedNames: [],
       videoState: { playing: false, currentTime: 0, lastUpdated: Date.now() },
       users: {
         [socket.id]: userProfile,
@@ -132,10 +134,10 @@ io.on('connection', (socket) => {
     currentRoomCode = roomCode;
 
     socket.join(roomCode);
-    console.log(`Room created: ${roomCode} by ${name}`);
+    console.log(`Room created: ${roomCode} by ${name} (Host ID: ${socket.id})`);
 
     // Acknowledge creation
-    socket.emit('room-created', { roomCode, users: roomData.users });
+    socket.emit('room-created', { roomCode, users: roomData.users, hostId: roomData.hostId });
   });
 
   // Handle room joining
@@ -148,19 +150,21 @@ io.on('connection', (socket) => {
 
     const room = rooms.get(code);
 
-    // Clean up any offline users or duplicate names to prevent double counting / dead sockets
+    // Check if the user is banned
+    if (room.bannedNames && room.bannedNames.includes(name)) {
+      socket.emit('banned-error', {
+        message: 'You have been blocked from this room.',
+        roomCode: code,
+        name
+      });
+      return;
+    }
+
+    // Clean up duplicate names or offline users to prevent double counting
     for (const id of Object.keys(room.users)) {
       if (room.users[id].status === 'Offline' || room.users[id].name === name) {
         delete room.users[id];
       }
-    }
-
-    const numUsers = Object.keys(room.users).length;
-
-    // Limit to 2 users for the MVP
-    if (numUsers >= 2) {
-      socket.emit('join-error', 'Room is full (max 2 users).');
-      return;
     }
 
     userProfile = { name, status: 'Active' };
@@ -173,6 +177,7 @@ io.on('connection', (socket) => {
     // Notify the room about the new user and state
     io.to(code).emit('room-updated', {
       roomCode: code,
+      hostId: room.hostId,
       users: room.users,
       videoState: room.videoState,
       magnetURI: room.magnetURI,
@@ -281,6 +286,123 @@ io.on('connection', (socket) => {
     console.log(`[${currentRoomCode}] Seek to ${currentTime} by ${userProfile?.name}`);
   });
 
+  // Handle host delegation
+  socket.on('make-host', ({ targetSocketId }) => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
+    const room = rooms.get(currentRoomCode);
+    if (socket.id !== room.hostId) return; // Only current host can delegate
+
+    room.hostId = targetSocketId;
+    console.log(`[${currentRoomCode}] Host transferred to ${targetSocketId}`);
+
+    io.to(currentRoomCode).emit('room-updated', {
+      roomCode: currentRoomCode,
+      hostId: room.hostId,
+      users: room.users,
+      videoState: room.videoState,
+      magnetURI: room.magnetURI,
+      fileName: room.fileName,
+      fileSize: room.fileSize,
+      youtubeUrl: room.youtubeUrl,
+      cloudUrl: room.cloudUrl,
+    });
+
+    // Send a system message to chat to announce new host
+    const systemMessage = {
+      id: Math.random().toString(36).substr(2, 9),
+      sender: 'System',
+      text: `${room.users[targetSocketId]?.name || 'Someone'} is now the Host.`,
+      timestamp: Date.now(),
+    };
+    io.to(currentRoomCode).emit('chat-message', systemMessage);
+  });
+
+  // Handle user kickout
+  socket.on('kick-user', ({ targetSocketId }) => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
+    const room = rooms.get(currentRoomCode);
+    if (socket.id !== room.hostId) return; // Only current host can kick
+    if (targetSocketId === socket.id) return; // Cannot kick yourself
+
+    const targetUser = room.users[targetSocketId];
+    if (!targetUser) return;
+
+    const kickedName = targetUser.name;
+    // Add name to bannedNames list
+    if (!room.bannedNames.includes(kickedName)) {
+      room.bannedNames.push(kickedName);
+    }
+
+    console.log(`[${currentRoomCode}] Kicking out user ${kickedName} (${targetSocketId})`);
+
+    // Notify the target user they've been kicked
+    io.to(targetSocketId).emit('kicked-from-room');
+
+    // Force socket to leave room and delete from room users
+    const targetSocket = io.sockets.sockets.get(targetSocketId);
+    if (targetSocket) {
+      targetSocket.leave(currentRoomCode);
+    }
+    delete room.users[targetSocketId];
+
+    // Broadcast updated room state
+    io.to(currentRoomCode).emit('room-updated', {
+      roomCode: currentRoomCode,
+      hostId: room.hostId,
+      users: room.users,
+      videoState: room.videoState,
+      magnetURI: room.magnetURI,
+      fileName: room.fileName,
+      fileSize: room.fileSize,
+      youtubeUrl: room.youtubeUrl,
+      cloudUrl: room.cloudUrl,
+    });
+
+    // Send a system message to chat to announce the kickout
+    const systemMessage = {
+      id: Math.random().toString(36).substr(2, 9),
+      sender: 'System',
+      text: `${kickedName} has been kicked out of the room.`,
+      timestamp: Date.now(),
+    };
+    io.to(currentRoomCode).emit('chat-message', systemMessage);
+  });
+
+  // Handle blocked user join requests
+  socket.on('request-join-approval', ({ roomCode, name }) => {
+    const code = roomCode.trim().toUpperCase();
+    if (!rooms.has(code)) return;
+    const room = rooms.get(code);
+
+    console.log(`[${code}] Blocked user ${name} requested join approval from host ${room.hostId}`);
+
+    // Send the approval request to the active host
+    io.to(room.hostId).emit('join-request-received', {
+      name,
+      requesterSocketId: socket.id,
+      roomCode: code
+    });
+  });
+
+  // Handle host approval/denial of join requests
+  socket.on('approve-join-request', ({ roomCode, requesterSocketId, name, approved }) => {
+    const code = roomCode.trim().toUpperCase();
+    if (!rooms.has(code)) return;
+    const room = rooms.get(code);
+    if (socket.id !== room.hostId) return; // Only host can approve or deny
+
+    if (approved) {
+      console.log(`[${code}] Host approved join request for ${name}`);
+      // Remove from bannedNames list
+      room.bannedNames = room.bannedNames.filter(n => n !== name);
+      // Notify the requester socket they are allowed to join
+      io.to(requesterSocketId).emit('join-request-approved');
+    } else {
+      console.log(`[${code}] Host denied join request for ${name}`);
+      io.to(requesterSocketId).emit('join-request-denied');
+    }
+  });
+
   // Handle chat message
   socket.on('chat-message', (messageText) => {
     if (!currentRoomCode || !userProfile) return;
@@ -320,6 +442,7 @@ io.on('connection', (socket) => {
     // Broadcast status change to everyone in the room
     io.to(currentRoomCode).emit('room-updated', {
       roomCode: currentRoomCode,
+      hostId: room.hostId,
       users: room.users,
       videoState: room.videoState,
       magnetURI: room.magnetURI,
@@ -356,9 +479,31 @@ io.on('connection', (socket) => {
           rooms.delete(currentRoomCode);
           console.log(`Room ${currentRoomCode} deleted and expired (all users disconnected).`);
         } else {
+          // If the departing user was the host, delegate to the next online user
+          if (socket.id === room.hostId) {
+            const onlineUserIds = Object.keys(room.users).filter(
+              id => id !== socket.id && room.users[id].status !== 'Offline'
+            );
+            if (onlineUserIds.length > 0) {
+              const newHostId = onlineUserIds[0];
+              room.hostId = newHostId;
+              console.log(`[${currentRoomCode}] Host disconnected. Auto-delegated host to ${newHostId}`);
+              
+              // Broadcast system message to chat
+              const systemMessage = {
+                id: Math.random().toString(36).substr(2, 9),
+                sender: 'System',
+                text: `${room.users[newHostId].name} is now the Host (previous host left).`,
+                timestamp: Date.now(),
+              };
+              io.to(currentRoomCode).emit('chat-message', systemMessage);
+            }
+          }
+
           // Send update that user went offline
           io.to(currentRoomCode).emit('room-updated', {
             roomCode: currentRoomCode,
+            hostId: room.hostId,
             users: room.users,
             videoState: room.videoState,
             magnetURI: room.magnetURI,
