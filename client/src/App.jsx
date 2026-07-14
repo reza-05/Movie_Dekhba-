@@ -212,11 +212,63 @@ function App() {
 
       {/* Top Header/Navbar */}
       <header className="px-6 md:px-12 py-5 flex items-center justify-between border-b border-white/[0.04] bg-slate-950/45 backdrop-blur-xl sticky top-0 z-50 animate-slide-down">
-        <div className="flex items-center gap-3 group cursor-pointer">
-          <div className="bg-gradient-to-tr from-indigo-500 to-violet-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-500/10 transition-transform duration-300 group-hover:scale-105">
-            <Film className="h-5 w-5" />
+        <div className="flex items-center gap-1 group cursor-pointer relative">
+          {/* Custom Animated Vintage Projector Icon */}
+          <div className="w-16 h-12 flex items-center justify-center relative overflow-visible mt-[-2px]">
+            <svg className="w-16 h-16 text-indigo-400 overflow-visible absolute top-[-8px] left-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="nav-projector-light" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#fef08a" stopOpacity="0.6" />
+                  <stop offset="50%" stopColor="#fef08a" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#fef08a" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+
+              {/* Light Beam (Flickering & Pulsing Animation) */}
+              <polygon 
+                points="71,51 71,57 115,70 115,38" 
+                fill="url(#nav-projector-light)" 
+                className="animate-beam-flicker" 
+              />
+
+              {/* Projector Body (Deep Slate/Black) */}
+              <rect x="35" y="45" width="30" height="18" rx="2" fill="#0f172a" stroke="#475569" strokeWidth="2" />
+              <rect x="65" y="48" width="6" height="12" rx="1" fill="#fef08a" stroke="#475569" strokeWidth="1.5" className="animate-pulse" />
+              <line x1="38" y1="58" x2="62" y2="58" stroke="#475569" strokeWidth="2" />
+              
+              {/* Tripod Stand */}
+              <line x1="50" y1="63" x2="50" y2="82" stroke="#475569" strokeWidth="2" />
+              <line x1="50" y1="63" x2="42" y2="82" stroke="#475569" strokeWidth="2" />
+              <line x1="50" y1="63" x2="58" y2="82" stroke="#475569" strokeWidth="2" />
+              <circle cx="50" cy="64" r="2" fill="#475569" />
+
+              {/* Reel Arm Brackets */}
+              <line x1="50" y1="46" x2="38" y2="34" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
+              <line x1="50" y1="46" x2="62" y2="34" stroke="#64748b" strokeWidth="3" strokeLinecap="round" />
+              
+              {/* Animated Reels */}
+              <g className="animate-[spin_4s_linear_infinite]" style={{ transformOrigin: '38px 34px' }}>
+                <circle cx="38" cy="34" r="12" fill="#1e293b" stroke="#475569" strokeWidth="2" />
+                <circle cx="38" cy="34" r="9" fill="none" stroke="#475569" strokeWidth="1" strokeDasharray="4 2" />
+                <circle cx="38" cy="27" r="1.5" fill="#020617" />
+                <circle cx="38" cy="41" r="1.5" fill="#020617" />
+                <circle cx="31" cy="34" r="1.5" fill="#020617" />
+                <circle cx="45" cy="34" r="1.5" fill="#020617" />
+                <circle cx="38" cy="34" r="2" fill="#64748b" />
+              </g>
+              
+              <g className="animate-[spin_4s_linear_infinite]" style={{ transformOrigin: '62px 34px' }}>
+                <circle cx="62" cy="34" r="12" fill="#1e293b" stroke="#475569" strokeWidth="2" />
+                <circle cx="62" cy="34" r="9" fill="none" stroke="#475569" strokeWidth="1" strokeDasharray="4 2" />
+                <circle cx="62" cy="27" r="1.5" fill="#020617" />
+                <circle cx="62" cy="41" r="1.5" fill="#020617" />
+                <circle cx="55" cy="34" r="1.5" fill="#020617" />
+                <circle cx="69" cy="34" r="1.5" fill="#020617" />
+                <circle cx="62" cy="34" r="2" fill="#64748b" />
+              </g>
+            </svg>
           </div>
-          <span className="text-base font-bold tracking-tight text-white font-sans transition-colors group-hover:text-indigo-200">
+          <span className="text-base font-bold tracking-tight font-sans animate-text-flicker select-none ml-[-6px]">
             Movie Dekhba
           </span>
         </div>

@@ -166,3 +166,41 @@ body {
 .animate-cinematic-wall {
   animation: cinematicWall 30s ease-in-out infinite;
 }
+
+@keyframes beamFlicker {
+  0%, 100% { opacity: 0.65; }
+  5% { opacity: 0.45; }
+  10% { opacity: 0.85; }
+  15% { opacity: 0.35; }
+  20% { opacity: 0.75; }
+  30% { opacity: 0.45; }
+  40% { opacity: 0.9; }
+  50% { opacity: 0.55; }
+  60% { opacity: 0.8; }
+  70% { opacity: 0.4; }
+  80% { opacity: 0.85; }
+  90% { opacity: 0.5; }
+}
+
+@keyframes textFlicker {
+  0%, 100% { color: rgba(254, 240, 138, 0.95); text-shadow: 0 0 10px rgba(254, 240, 138, 0.3); }
+  5% { color: rgba(254, 240, 138, 0.8); text-shadow: 0 0 6px rgba(254, 240, 138, 0.15); }
+  10% { color: rgba(254, 240, 138, 1); text-shadow: 0 0 14px rgba(254, 240, 138, 0.45); }
+  15% { color: rgba(254, 240, 138, 0.7); text-shadow: 0 0 4px rgba(254, 240, 138, 0.1); }
+  20% { color: rgba(254, 240, 138, 0.95); text-shadow: 0 0 11px rgba(254, 240, 138, 0.35); }
+  30% { color: rgba(254, 240, 138, 0.85); text-shadow: 0 0 7px rgba(254, 240, 138, 0.2); }
+  40% { color: rgba(254, 240, 138, 1); text-shadow: 0 0 16px rgba(254, 240, 138, 0.5); }
+  50% { color: rgba(254, 240, 138, 0.9); text-shadow: 0 0 9px rgba(254, 240, 138, 0.25); }
+  60% { color: rgba(254, 240, 138, 0.95); text-shadow: 0 0 12px rgba(254, 240, 138, 0.38); }
+  70% { color: rgba(254, 240, 138, 0.75); text-shadow: 0 0 5px rgba(254, 240, 138, 0.12); }
+  80% { color: rgba(254, 240, 138, 1); text-shadow: 0 0 15px rgba(254, 240, 138, 0.42); }
+  90% { color: rgba(254, 240, 138, 0.88); text-shadow: 0 0 8px rgba(254, 240, 138, 0.28); }
+}
+
+.animate-beam-flicker {
+  animation: beamFlicker 1.8s infinite;
+}
+
+.animate-text-flicker {
+  animation: textFlicker 1.8s infinite;
+}
