@@ -1117,9 +1117,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#070b13] flex flex-col text-slate-100 font-sans">
+    <div className="min-h-screen bg-[#02040a] flex flex-col text-slate-100 font-sans">
       {/* Room Header */}
-      <header className="px-6 py-4 flex flex-col sm:flex-row items-center justify-between border-b border-slate-800 bg-[#0d1425]/70 backdrop-blur-md gap-4">
+      <header className="px-6 py-4 flex flex-col sm:flex-row items-center justify-between border-b border-white/[0.04] bg-slate-950/45 backdrop-blur-xl gap-4">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <button 
             onClick={onLeave}
@@ -1577,7 +1577,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
           </div>
 
           {/* Scrollable Room Footer */}
-          <footer className="w-full max-w-5xl mt-12 pb-4 border-t border-slate-900 bg-transparent text-center text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider pt-6">
+          {/* Scrollable Room Footer (Floating Glass Pill) */}
+          <footer className="w-full max-w-2xl mt-16 mb-6 px-6 py-3 border border-white/[0.04] bg-slate-950/35 backdrop-blur-md rounded-2xl text-center text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
             <div className="flex flex-wrap justify-center items-center gap-1">
               <span>&copy; {new Date().getFullYear()} Movie Dekhba</span>
               <span className="text-slate-700">&bull;</span>
@@ -1596,8 +1597,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
         {/* Collapsible Chat */}
         {chatOpen && (
-          <aside className="w-full md:w-80 lg:w-96 border-t md:border-t-0 md:border-l border-slate-800 bg-[#0a101d]/60 backdrop-blur-md flex flex-col shadow-2xl relative z-10 h-[350px] md:h-auto">
-            <div className="px-4 py-3.5 border-b border-slate-800 flex items-center justify-between">
+          <aside className="w-full md:w-80 lg:w-96 border-t md:border-t-0 md:border-l border-white/[0.04] bg-slate-950/60 backdrop-blur-xl flex flex-col shadow-2xl relative z-10 h-[350px] md:h-auto">
+            <div className="px-4 py-3.5 border-b border-white/[0.04] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <MessageSquare className="h-4 w-4 text-indigo-400" />
                 <span className="font-bold text-sm text-white">Live Theatre Chat</span>

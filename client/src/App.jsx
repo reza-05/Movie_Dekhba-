@@ -211,7 +211,7 @@ function App() {
       />
 
       {/* Top Header/Navbar */}
-      <header className="px-6 md:px-12 py-5 flex items-center justify-between border-b border-white/[0.04] bg-[#02040a]/45 backdrop-blur-xl sticky top-0 z-50 animate-slide-down">
+      <header className="px-6 md:px-12 py-5 flex items-center justify-between border-b border-white/[0.04] bg-slate-950/45 backdrop-blur-xl sticky top-0 z-50 animate-slide-down">
         <div className="flex items-center gap-3 group cursor-pointer">
           <div className="bg-gradient-to-tr from-indigo-500 to-violet-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-500/10 transition-transform duration-300 group-hover:scale-105">
             <Film className="h-5 w-5" />
@@ -395,8 +395,8 @@ function App() {
         </div>
       </main>
 
-      {/* Footer Info */}
-      <footer className="py-3 border-t border-slate-900 bg-[#02040a] text-center text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider relative z-10">
+      {/* Footer Info (Translucent Glass Panel) */}
+      <footer className="py-4 border-t border-white/[0.04] bg-slate-950/35 backdrop-blur-md text-center text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider relative z-10">
         <div className="max-w-6xl mx-auto px-4 flex flex-wrap justify-center items-center gap-1">
           <span>&copy; {new Date().getFullYear()} Movie Dekhba</span>
           <span className="text-slate-700">&bull;</span>
