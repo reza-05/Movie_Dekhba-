@@ -231,7 +231,7 @@ function App() {
 
       {/* Main Container */}
       <main className="flex-grow flex items-center justify-center px-4 sm:px-8 py-16 md:py-24 lg:py-32 relative z-10">
-        <div className="w-full max-w-[85rem] px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 xl:gap-24 items-center transform -translate-y-4 md:-translate-y-8 lg:-translate-y-12">
+        <div className="w-full max-w-6xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 xl:gap-20 items-center transform -translate-y-4 md:-translate-y-8 lg:-translate-y-12">
           
           {/* Left Column: Clean Responsive Typography */}
           <div className="lg:col-span-7 space-y-6 lg:space-y-8 text-center lg:text-left">
@@ -248,8 +248,8 @@ function App() {
             </p>
           </div>
 
-          {/* Right Column: Interactive Tabbed Room Access Widget (Aligned Right on Desktop) */}
-          <div className="lg:col-span-5 w-full flex justify-center lg:justify-end">
+          {/* Right Column: Interactive Tabbed Room Access Widget (Centered on Desktop Grid Column) */}
+          <div className="lg:col-span-5 w-full flex justify-center">
             <div className="w-full max-w-md glass-panel p-8 rounded-3xl border border-white/[0.04] bg-gradient-to-b from-[#0b0f19]/80 to-[#05070c]/90 shadow-2xl relative transition-all duration-300">
               <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 rounded-t-3xl"></div>
 
