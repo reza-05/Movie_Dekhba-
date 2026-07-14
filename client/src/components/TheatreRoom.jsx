@@ -1440,7 +1440,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
           <div className="w-full max-w-5xl flex flex-col items-center my-auto">
             {/* Status Bar */}
-            {bufferStatus && (
+            {!isHost && bufferStatus && (
             <div className="w-full max-w-5xl mb-4 bg-indigo-950/20 border border-indigo-500/20 px-4 py-2.5 rounded-lg flex flex-col gap-2 text-xs text-indigo-300">
               <div className="flex items-center gap-2.5">
                 <Download className="h-4 w-4 text-indigo-400 animate-bounce" />
