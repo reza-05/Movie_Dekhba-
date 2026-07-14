@@ -292,8 +292,8 @@ function App() {
                 className="font-extrabold text-white"
                 style={{
                   fontSize: 'clamp(2.25rem, 6.2vw - 0.5rem, 5rem)',
-                  lineHeight: '1.08',
-                  letterSpacing: '-0.02em'
+                  lineHeight: '1.1',
+                  letterSpacing: '-0.01em'
                 }}
               >
                 Watch movies{" "}<br className="hidden lg:block" />
