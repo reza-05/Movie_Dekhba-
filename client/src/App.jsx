@@ -250,14 +250,14 @@ function App() {
 
           {/* Right Column: Interactive Tabbed Room Access Widget (Centered on Desktop Grid Column) */}
           <div className="lg:col-span-5 w-full flex justify-center">
-            <div className="w-full max-w-md glass-panel p-8 rounded-3xl border border-white/[0.04] bg-gradient-to-b from-[#0b0f19]/80 to-[#05070c]/90 shadow-2xl relative transition-all duration-300">
+            <div className="w-full max-w-[30rem] glass-panel p-10 md:p-12 rounded-3xl border border-white/[0.04] bg-gradient-to-b from-[#0b0f19]/80 to-[#05070c]/90 shadow-2xl relative transition-all duration-300">
               <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 rounded-t-3xl"></div>
 
               {/* Step Tab Switcher */}
               <div className="flex bg-[#02040a]/40 p-1.5 rounded-2xl border border-slate-900/60 mb-8 relative">
                 <button
                   onClick={() => { setActiveTab('host'); setError(''); }}
-                  className={`flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all duration-200 ${
+                  className={`flex-1 py-3 text-center text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 ${
                     activeTab === 'host' 
                       ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md' 
                       : 'text-slate-400 hover:text-white'
@@ -267,7 +267,7 @@ function App() {
                 </button>
                 <button
                   onClick={() => { setActiveTab('join'); setError(''); }}
-                  className={`flex-1 py-2.5 text-center text-xs font-bold rounded-xl transition-all duration-200 ${
+                  className={`flex-1 py-3 text-center text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 ${
                     activeTab === 'join' 
                       ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md' 
                       : 'text-slate-400 hover:text-white'
@@ -278,7 +278,7 @@ function App() {
               </div>
 
               {error && (
-                <div className="mb-6 p-3.5 text-xs bg-rose-950/20 border border-rose-500/20 text-rose-300 rounded-xl">
+                <div className="mb-6 p-4 text-xs bg-rose-950/20 border border-rose-500/20 text-rose-300 rounded-xl">
                   {error}
                 </div>
               )}
@@ -287,19 +287,19 @@ function App() {
               {activeTab === 'host' ? (
                 <form onSubmit={handleCreateRoom} className="space-y-6">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2 text-left">
+                    <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
                       Display Name
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <User className="h-4 w-4" />
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
+                        <User className="h-4.5 w-4.5" />
                       </div>
                       <input
                         type="text"
                         required
                         value={userName}
                         onChange={(e) => setUserName(e.target.value)}
-                        className="w-full py-3 pl-10 pr-4 rounded-xl glass-input text-xs font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/30 focus:border-indigo-500/50 focus:shadow-indigo-500/5 transition-all"
+                        className="w-full py-4 pl-11 pr-4 rounded-2xl glass-input text-sm font-medium text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:border-indigo-500/50 focus:shadow-indigo-500/5 transition-all"
                         placeholder="E.g., Alex"
                       />
                     </div>
@@ -307,41 +307,41 @@ function App() {
 
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-between py-3 px-5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20"
+                    className="w-full flex items-center justify-between py-4 px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-2xl text-sm font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 cursor-pointer"
                   >
                     <span>Host a New Room</span>
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-4.5 w-4.5" />
                   </button>
                 </form>
               ) : (
                 /* Tab Content: Join Room Form */
                 <form onSubmit={handleJoinRoom} className="space-y-5">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2 text-left">
+                    <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
                       Display Name
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <User className="h-4 w-4" />
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
+                        <User className="h-4.5 w-4.5" />
                       </div>
                       <input
                         type="text"
                         required
                         value={userName}
                         onChange={(e) => setUserName(e.target.value)}
-                        className="w-full py-3 pl-10 pr-4 rounded-xl glass-input text-xs font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/30 focus:border-indigo-500/50 focus:shadow-indigo-500/5 transition-all"
+                        className="w-full py-4 pl-11 pr-4 rounded-2xl glass-input text-sm font-medium text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:border-indigo-500/50 focus:shadow-indigo-500/5 transition-all"
                         placeholder="E.g., Alex"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-slate-400 tracking-wider mb-2 text-left">
+                    <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
                       Room Code
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-indigo-400">
-                        <Key className="h-4 w-4" />
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-400">
+                        <Key className="h-4.5 w-4.5" />
                       </div>
                       <input
                         type="text"
@@ -349,7 +349,7 @@ function App() {
                         required
                         value={roomCodeInput}
                         onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-                        className="w-full py-3 pl-10 pr-4 bg-slate-950/40 border border-indigo-500/30 focus:border-indigo-500 rounded-xl text-xs font-bold tracking-widest text-center uppercase placeholder:normal-case placeholder:font-semibold placeholder:text-slate-500 placeholder:tracking-normal text-indigo-200 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] transition-all"
+                        className="w-full py-4 pl-11 pr-4 bg-slate-950/50 border border-indigo-500/30 focus:border-indigo-500 rounded-2xl text-sm font-bold tracking-widest text-center uppercase placeholder:normal-case placeholder:font-medium placeholder:text-slate-500 placeholder:tracking-normal text-indigo-200 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] transition-all"
                         placeholder="Enter 6-digit Code"
                       />
                     </div>
@@ -357,10 +357,10 @@ function App() {
 
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-between py-3 px-5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20"
+                    className="w-full flex items-center justify-between py-4 px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-2xl text-sm font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 cursor-pointer"
                   >
                     <span>Join Room</span>
-                    <ArrowRight className="h-4 w-4" />
+                    <ArrowRight className="h-4.5 w-4.5" />
                   </button>
                 </form>
               )}
