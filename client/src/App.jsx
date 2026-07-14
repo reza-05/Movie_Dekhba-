@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import TheatreRoom from './components/TheatreRoom';
-import { Film, User, Key, Sparkles, ArrowRight } from 'lucide-react';
+import { Film, User, Key, Sparkles, ArrowRight, Zap, Tv, FolderOpen, Lock } from 'lucide-react';
 
 // Error Boundary to catch render-time issues in TheatreRoom
 class ErrorBoundary extends React.Component {
@@ -183,10 +183,7 @@ function App() {
 
       {/* 3D Curved Perspective Movie Grid Background (Fixed and Grid based) */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-20 flex justify-center items-center opacity-[0.28] select-none">
-        <div 
-          className="w-[140%] h-[140%] grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
-          style={{ transform: 'perspective(1200px) rotateX(24deg) rotateY(-10deg) rotateZ(10deg) skewX(-8deg) scale(1.15)' }}
-        >
+        <div className="w-[140%] h-[140%] grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 animate-cinematic-wall">
           <div className="flex flex-col gap-4 animate-scroll-up">
             {col1.map((movie, idx) => renderMovieCard(movie, idx))}
           </div>
@@ -205,25 +202,25 @@ function App() {
         </div>
       </div>
 
-      {/* Radial Spotlighting Overlay with Backdrop Blur (Fixed to viewport) */}
+      {/* Layered Spotlighting & Purple Ambient Glow Overlays (Fixed to viewport) */}
       <div 
         className="fixed inset-0 backdrop-blur-[3px] -z-10 pointer-events-none"
         style={{
-          background: 'radial-gradient(circle at center, rgba(2, 4, 10, 0.55) 0%, rgba(2, 4, 10, 0.3) 65%, rgba(2, 4, 10, 0.15) 100%)'
+          background: 'linear-gradient(to bottom, rgba(2, 4, 10, 0.55) 0%, rgba(2, 4, 10, 0.8) 100%), radial-gradient(circle at 75% 50%, rgba(99, 102, 241, 0.12) 0%, transparent 60%)'
         }}
       />
 
       {/* Top Header/Navbar */}
-      <header className="px-6 md:px-12 py-5 flex items-center justify-between border-b border-slate-900/60 bg-[#02040a]/40 backdrop-blur-lg sticky top-0 z-50">
-        <div className="flex items-center gap-3">
-          <div className="bg-gradient-to-tr from-indigo-500 to-violet-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-500/10">
+      <header className="px-6 md:px-12 py-5 flex items-center justify-between border-b border-white/[0.04] bg-[#02040a]/45 backdrop-blur-xl sticky top-0 z-50 animate-slide-down">
+        <div className="flex items-center gap-3 group cursor-pointer">
+          <div className="bg-gradient-to-tr from-indigo-500 to-violet-600 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-500/10 transition-transform duration-300 group-hover:scale-105">
             <Film className="h-5 w-5" />
           </div>
-          <span className="text-base font-bold tracking-tight text-white font-sans">
+          <span className="text-base font-bold tracking-tight text-white font-sans transition-colors group-hover:text-indigo-200">
             Movie Dekhba
           </span>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-indigo-400 bg-indigo-500/5 border border-indigo-500/10 px-3.5 py-1.5 rounded-full font-bold uppercase tracking-wider">
+        <div className="relative flex items-center gap-2 text-[10px] text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-3.5 py-1.5 rounded-full font-bold uppercase tracking-wider shadow-[0_0_12px_rgba(99,102,241,0.15)] transition-all">
           <div className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
           <span>Active Service</span>
         </div>
@@ -235,42 +232,69 @@ function App() {
           
           {/* Left Column: Clean Responsive Typography */}
           <div className="lg:col-span-7 space-y-5 lg:space-y-6 text-center lg:text-left transform lg:-translate-y-4">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-normal text-white leading-[1.2]">
-              Watch movies{" "}<br className="hidden lg:block" />
-              together with{" "}<br className="hidden lg:block" />
-              <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
-                your friends
-              </span>
-            </h1>
+            <div className="animate-slide-up [animation-delay:100ms] [animation-fill-mode:forwards]">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-normal text-white leading-[1.2]">
+                Watch movies{" "}<br className="hidden lg:block" />
+                together with{" "}<br className="hidden lg:block" />
+                <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
+                  your friends
+                </span>
+              </h1>
+            </div>
             
-            <p className="text-slate-400 text-sm sm:text-base md:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed font-semibold">
-              Direct high-speed movie rooms for you and your friends. Upload files from your local storage and watch them instantly with no size limits or quality loss.
-            </p>
+            <div className="animate-slide-up [animation-delay:250ms] [animation-fill-mode:forwards]">
+              <p className="text-slate-400 text-sm sm:text-base md:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed font-semibold">
+                Direct high-speed movie rooms for you and your friends. Upload files from your local storage and watch them instantly with no size limits or quality loss.
+              </p>
+            </div>
+
+            {/* Premium Feature Chips */}
+            <div className="flex flex-wrap gap-2.5 pt-4 justify-center lg:justify-start animate-slide-up [animation-delay:400ms] [animation-fill-mode:forwards]">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                <Zap className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Instant Sync</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                <Tv className="h-3.5 w-3.5 text-indigo-400" />
+                <span>HD Streaming</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                <FolderOpen className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Local Files</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                <Lock className="h-3.5 w-3.5 text-indigo-400" />
+                <span>Private Rooms</span>
+              </div>
+            </div>
           </div>
 
           {/* Right Column: Interactive Tabbed Room Access Widget (Centered on Desktop Grid Column) */}
-          <div className="lg:col-span-5 w-full flex justify-center">
-            <div className="w-full max-w-[32rem] glass-panel px-6 py-10 sm:p-10 md:p-12 rounded-3xl border border-white/[0.04] bg-gradient-to-b from-[#0b0f19]/80 to-[#05070c]/90 shadow-2xl relative transition-all duration-300">
-              <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-violet-600 rounded-t-3xl"></div>
+          <div className="lg:col-span-5 w-full flex justify-center animate-scale-up [animation-delay:200ms] [animation-fill-mode:forwards]">
+            <div className="w-full max-w-[32rem] glass-panel px-6 py-10 sm:p-10 md:p-12 rounded-3xl border border-white/[0.06] bg-gradient-to-b from-[#0b0f19]/70 to-[#05070c]/85 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative transition-all duration-300 hover:scale-[1.005] hover:shadow-[0_20px_50px_rgba(99,102,241,0.05)]">
+              <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-indigo-500/20 via-indigo-500 to-violet-500/20 rounded-t-3xl shadow-[0_0_15px_rgba(99,102,241,0.4)]"></div>
 
-              {/* Step Tab Switcher */}
-              <div className="flex bg-[#02040a]/40 p-1.5 rounded-2xl border border-slate-900/60 mb-8 relative">
+              {/* Step Tab Switcher (iOS/Apple Style Sliding Indicators) */}
+              <div className="flex bg-[#02040a]/65 p-1 rounded-2xl border border-white/[0.04] mb-8 relative z-0 overflow-hidden select-none">
+                <div 
+                  className="absolute top-1 bottom-1 left-1 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 shadow-md shadow-indigo-600/10 transition-all duration-300 ease-out z-10"
+                  style={{
+                    width: 'calc(50% - 4px)',
+                    transform: activeTab === 'host' ? 'translateX(0)' : 'translateX(100%)'
+                  }}
+                />
                 <button
                   onClick={() => { setActiveTab('host'); setError(''); }}
-                  className={`flex-1 py-3.5 text-center text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 ${
-                    activeTab === 'host' 
-                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md' 
-                      : 'text-slate-400 hover:text-white'
+                  className={`flex-1 py-3.5 text-center text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 relative z-20 ${
+                    activeTab === 'host' ? 'text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   Host Room
                 </button>
                 <button
                   onClick={() => { setActiveTab('join'); setError(''); }}
-                  className={`flex-1 py-3.5 text-center text-xs sm:text-sm font-bold rounded-xl transition-all duration-200 ${
-                    activeTab === 'join' 
-                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md' 
-                      : 'text-slate-400 hover:text-white'
+                  className={`flex-1 py-3.5 text-center text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 relative z-20 ${
+                    activeTab === 'join' ? 'text-white' : 'text-slate-400 hover:text-white'
                   }`}
                 >
                   Join Room
@@ -290,8 +314,8 @@ function App() {
                     <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
                       Display Name
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 transition-colors group-focus-within:text-indigo-400">
                         <User className="h-5 w-5" />
                       </div>
                       <input
@@ -299,7 +323,7 @@ function App() {
                         required
                         value={userName}
                         onChange={(e) => setUserName(e.target.value)}
-                        className="w-full py-[1.125rem] pl-12 pr-4 rounded-2xl glass-input text-base font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:border-indigo-500/50 focus:shadow-indigo-500/5 transition-all"
+                        className="w-full py-[1.125rem] pl-12 pr-4 rounded-2xl glass-input text-base font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] placeholder:text-slate-500 transition-all duration-300"
                         placeholder="E.g., Alex"
                       />
                     </div>
@@ -307,10 +331,10 @@ function App() {
 
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-between py-[1.125rem] px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-2xl text-base font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 cursor-pointer"
+                    className="w-full flex items-center justify-between py-[1.125rem] px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-2xl text-base font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/25 cursor-pointer group"
                   >
                     <span>Host a New Room</span>
-                    <ArrowRight className="h-5 w-5" />
+                    <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
                   </button>
                 </form>
               ) : (
@@ -320,8 +344,8 @@ function App() {
                     <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
                       Display Name
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500">
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 transition-colors group-focus-within:text-indigo-400">
                         <User className="h-5 w-5" />
                       </div>
                       <input
@@ -329,7 +353,7 @@ function App() {
                         required
                         value={userName}
                         onChange={(e) => setUserName(e.target.value)}
-                        className="w-full py-[1.125rem] pl-12 pr-4 rounded-2xl glass-input text-base font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:border-indigo-500/50 focus:shadow-indigo-500/5 transition-all"
+                        className="w-full py-[1.125rem] pl-12 pr-4 rounded-2xl glass-input text-base font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] placeholder:text-slate-500 transition-all duration-300"
                         placeholder="E.g., Alex"
                       />
                     </div>
@@ -339,8 +363,8 @@ function App() {
                     <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
                       Room Code
                     </label>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-400">
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-400/70 transition-colors group-focus-within:text-indigo-400">
                         <Key className="h-5 w-5" />
                       </div>
                       <input
@@ -349,7 +373,7 @@ function App() {
                         required
                         value={roomCodeInput}
                         onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-                        className="w-full py-[1.125rem] pl-12 pr-4 bg-slate-950/50 border border-indigo-500/30 focus:border-indigo-500 rounded-2xl text-base font-bold tracking-widest text-center uppercase placeholder:normal-case placeholder:font-medium placeholder:text-slate-500 placeholder:tracking-normal text-indigo-200 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] transition-all"
+                        className="w-full py-[1.125rem] pl-12 pr-4 bg-slate-950/50 border border-indigo-500/30 focus:bg-slate-950/60 focus:border-indigo-500 rounded-2xl text-base font-bold tracking-widest text-center uppercase placeholder:normal-case placeholder:font-medium placeholder:text-slate-500 placeholder:tracking-normal text-indigo-200 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] transition-all duration-300"
                         placeholder="Enter 6-digit Code"
                       />
                     </div>
@@ -357,10 +381,10 @@ function App() {
 
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-between py-[1.125rem] px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-2xl text-base font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/20 cursor-pointer"
+                    className="w-full flex items-center justify-between py-[1.125rem] px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-2xl text-base font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/25 cursor-pointer group"
                   >
                     <span>Join Room</span>
-                    <ArrowRight className="h-5 w-5" />
+                    <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
                   </button>
                 </form>
               )}
