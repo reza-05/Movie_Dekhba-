@@ -234,7 +234,7 @@ function App() {
         <div className="w-full max-w-6xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 xl:gap-20 items-center transform -translate-y-4 md:-translate-y-8 lg:-translate-y-12">
           
           {/* Left Column: Clean Responsive Typography */}
-          <div className="lg:col-span-7 space-y-6 lg:space-y-8 text-center lg:text-left">
+          <div className="lg:col-span-7 space-y-5 lg:space-y-6 text-center lg:text-left transform lg:-translate-y-4">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-normal text-white leading-[1.2]">
               Watch movies<br className="hidden lg:block" />
               together with<br className="hidden lg:block" />
