@@ -4,7 +4,7 @@ import {
   Play, Pause, Volume2, Users, Send, Video, 
   ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles,
   RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles, ChevronLeft, ChevronRight,
-  MoreVertical, ChevronUp, ChevronDown
+  MoreVertical, ChevronUp, ChevronDown, Smile, Search
 } from 'lucide-react';
 
 function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId, onLeave }) {
@@ -38,6 +38,11 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatOpen, setChatOpen] = useState(true);
+  const [showPicker, setShowPicker] = useState(false);
+  const [pickerTab, setPickerTab] = useState('emojis'); // 'emojis', 'gifs'
+  const [gifSearchQuery, setGifSearchQuery] = useState('');
+  const [gifsList, setGifsList] = useState([]);
+  const [loadingGifs, setLoadingGifs] = useState(false);
 
   // Copy code feedback state
   const [copied, setCopied] = useState(false);
@@ -184,6 +189,34 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const transferOffset = useRef(0);
   const ackedOffset = useRef(0);
   const guestReceivedBytes = useRef(0);
+
+  // Debounced Giphy GIF search hook
+  useEffect(() => {
+    if (!showPicker || pickerTab !== 'gifs') return;
+    
+    const fetchGifs = async () => {
+      setLoadingGifs(true);
+      try {
+        const query = gifSearchQuery.trim() || 'popcorn';
+        const res = await fetch(`https://api.giphy.com/v1/gifs/search?api_key=LiyvJg9tGxV4aRc8tsDc45ZpqoZ6x8Gc&q=${encodeURIComponent(query)}&limit=12&rating=g`);
+        const data = await res.json();
+        if (data && data.data) {
+          const urls = data.data.map(g => g.images.fixed_height_small.url);
+          setGifsList(urls);
+        }
+      } catch (err) {
+        console.error('Error fetching GIFs from Giphy:', err);
+      } finally {
+        setLoadingGifs(false);
+      }
+    };
+
+    const delayDebounce = setTimeout(() => {
+      fetchGifs();
+    }, 450);
+
+    return () => clearTimeout(delayDebounce);
+  }, [gifSearchQuery, pickerTab, showPicker]);
 
   // 1. Initialize Socket.io Connection & Handshake
   useEffect(() => {
@@ -1299,6 +1332,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
     socket.current.emit('chat-message', chatInput.trim());
     setChatInput('');
+    setShowPicker(false);
   };
 
   const copyRoomCode = () => {
@@ -1914,26 +1948,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
               </div>
             )}
           </div>
-
-          {/* Scrollable Room Footer */}
-          {/* Scrollable Room Footer (Floating Glass Pill) */}
-          <footer className="w-full max-w-2xl mt-auto mb-6 px-6 py-3 border border-white/[0.04] bg-slate-950/35 backdrop-blur-md rounded-2xl text-center text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
-            <div className="flex flex-wrap justify-center items-center gap-1">
-              <span>&copy; {new Date().getFullYear()} Movie Dekhba</span>
-              <span className="text-slate-700">&bull;</span>
-              <span>Developed by</span>
-              <a 
-                href="https://github.com/reza-05" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-indigo-400 hover:text-indigo-300 transition-colors hover:underline normal-case font-bold ml-0.5"
-              >
-                reza-05
-              </a>
-            </div>
-          </footer>
-          </div>
         </div>
+      </div>
 
         {/* Collapsible Chat */}
         {chatOpen && (
@@ -1969,13 +1985,24 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                     >
                       <span className="text-[9px] text-slate-500 font-bold mb-1 px-1">{msg.sender}</span>
                       
-                      <div className={`p-3 rounded-2xl text-xs leading-relaxed ${
-                        isMe 
-                          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-tr-none shadow-md shadow-indigo-600/5' 
-                          : 'bg-[#0f1422]/80 text-slate-200 rounded-tl-none border border-white/[0.05] backdrop-blur-sm shadow-sm'
-                      }`}>
-                        {msg.text}
-                      </div>
+                      {msg.text.startsWith('gif:') ? (
+                        <div className="rounded-xl overflow-hidden border border-white/[0.08] shadow-lg max-w-[200px] bg-slate-900">
+                          <img 
+                            src={msg.text.substring(4)} 
+                            alt="GIF" 
+                            className="w-full h-auto object-cover" 
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
+                      ) : (
+                        <div className={`p-3 rounded-2xl text-xs leading-relaxed ${
+                          isMe 
+                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-tr-none shadow-md shadow-indigo-600/5' 
+                            : 'bg-[#0f1422]/80 text-slate-200 rounded-tl-none border border-white/[0.05] backdrop-blur-sm shadow-sm'
+                        }`}>
+                          {msg.text}
+                        </div>
+                      )}
 
                       <span className="text-[8px] text-slate-600 mt-1 px-1">
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -1987,8 +2014,128 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
               <div ref={chatEndRef} />
             </div>
 
+            {/* Premium Emoji & GIF Picker Popover */}
+            {showPicker && (
+              <div className="mx-4 mb-2 bg-[#0a0f1d]/95 border border-white/[0.08] backdrop-blur-xl rounded-2xl p-3.5 shadow-2xl flex flex-col gap-2 relative z-50 animate-scale-up select-none">
+                
+                {/* Popover Header / Tabs */}
+                <div className="flex bg-[#02040a]/65 p-0.5 rounded-xl border border-white/[0.04]">
+                  <button
+                    type="button"
+                    onClick={() => setPickerTab('emojis')}
+                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                      pickerTab === 'emojis'
+                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Emojis
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPickerTab('gifs')}
+                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                      pickerTab === 'gifs'
+                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    GIFs
+                  </button>
+                </div>
+
+                {/* Emojis Tab Content */}
+                {pickerTab === 'emojis' && (
+                  <div className="grid grid-cols-6 gap-2 max-h-40 overflow-y-auto p-1 text-center scrollbar-none">
+                    {['🍿', '🎬', '🎥', '😂', '😍', '🔥', '👏', '🎉', '🚀', '😭', '😱', '😡', '💯', '👍', '👎', '💖', '🤔', '😴', '💀', '🤩', '👀', '🥳', '💩', '🤝'].map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        onClick={() => {
+                          setChatInput(prev => prev + emoji);
+                        }}
+                        className="text-lg hover:scale-125 transition-transform p-1 rounded hover:bg-white/[0.04] cursor-pointer"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* GIFs Tab Content */}
+                {pickerTab === 'gifs' && (
+                  <div className="flex flex-col gap-2 text-left">
+                    {/* GIF Search Bar */}
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400">
+                        <Search className="h-3 w-3" />
+                      </div>
+                      <input
+                        type="text"
+                        value={gifSearchQuery}
+                        onChange={(e) => setGifSearchQuery(e.target.value)}
+                        placeholder="Search Giphy..."
+                        className="w-full py-1.5 pl-8 pr-3 rounded-lg text-[10px] text-slate-100 border border-white/[0.04] bg-slate-900/40 focus:bg-slate-950/60 focus:border-indigo-500/60 placeholder:text-slate-600 outline-none transition-all duration-200"
+                      />
+                    </div>
+
+                    {/* GIF Scroll Grid */}
+                    <div className="grid grid-cols-3 gap-1.5 max-h-36 overflow-y-auto scrollbar-none p-0.5">
+                      {loadingGifs ? (
+                        <div className="col-span-3 text-center py-6 text-[10px] text-slate-500 animate-pulse">
+                          Searching Giphy...
+                        </div>
+                      ) : gifsList.length === 0 ? (
+                        <div className="col-span-3 text-center py-6 text-[10px] text-slate-600">
+                          No GIFs found.
+                        </div>
+                      ) : (
+                        gifsList.map((gifUrl, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              socket.current.emit('chat-message', `gif:${gifUrl}`);
+                              // Add to local message list immediately for local feedback
+                              const localMsg = {
+                                id: Math.random().toString(36).substr(2, 9),
+                                sender: userName,
+                                text: `gif:${gifUrl}`,
+                                timestamp: Date.now()
+                              };
+                              setMessages(prev => [...prev, localMsg]);
+                              setShowPicker(false);
+                            }}
+                            className="aspect-square rounded-lg overflow-hidden border border-white/[0.04] hover:border-indigo-500/40 hover:scale-105 transition-all bg-slate-950 cursor-pointer"
+                          >
+                            <img 
+                              src={gifUrl} 
+                              alt="GIF" 
+                              className="w-full h-full object-cover" 
+                              referrerPolicy="no-referrer"
+                            />
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             <form onSubmit={handleSendChat} className="p-4 border-t border-white/[0.04] bg-slate-950/20">
               <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPicker(!showPicker)}
+                  className={`p-2.5 rounded-xl border transition-all active:scale-95 flex items-center justify-center cursor-pointer select-none ${
+                    showPicker
+                      ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                      : 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-slate-200 hover:border-indigo-500/30'
+                  }`}
+                >
+                  <Smile className="h-4.5 w-4.5" />
+                </button>
                 <input
                   type="text"
                   value={chatInput}
