@@ -4,7 +4,7 @@ import {
   Play, Pause, Volume2, Users, Send, Video, 
   ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles,
   RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles, ChevronLeft, ChevronRight,
-  MoreVertical
+  MoreVertical, ChevronUp, ChevronDown
 } from 'lucide-react';
 
 function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId, onLeave }) {
@@ -30,6 +30,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const [isKicked, setIsKicked] = useState(false);
   const [joinRequestStatus, setJoinRequestStatus] = useState(null); // null, 'sending', 'sent', 'denied'
   const [joinRequests, setJoinRequests] = useState([]); // [{ name, requesterSocketId, roomCode }]
+  const [usersExpanded, setUsersExpanded] = useState(false);
   const [bufferStatus, setBufferStatus] = useState('');
   const [transferProgress, setTransferProgress] = useState(0);
   
@@ -1467,7 +1468,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
             </button>
           )}
 
-          <div className="w-full max-w-5xl flex flex-col items-center my-auto">
+          <div className="w-full max-w-5xl flex-grow flex flex-col items-center justify-between min-h-full">
             {/* Status Bar */}
             {!isHost && bufferStatus && (
             <div className="w-full max-w-5xl mb-4 bg-indigo-950/20 border border-indigo-500/20 px-4 py-2.5 rounded-lg flex flex-col gap-2 text-xs text-indigo-300">
@@ -1800,12 +1801,24 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
           {/* Presence Watchdog status list */}
           <div className="w-full max-w-5xl mt-6 border-t border-slate-800/80 pt-6">
-            <h4 className="text-xs uppercase font-bold tracking-widest text-slate-500 mb-3 flex items-center gap-1">
-              <Monitor className="h-3.5 w-3.5 text-slate-500" />
-              <span>Viewer Status & Presence</span>
-            </h4>
+            <div className="text-xs uppercase font-bold tracking-widest text-slate-500 mb-3 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1">
+                <Monitor className="h-3.5 w-3.5 text-slate-500" />
+                <span>Viewer Status & Presence</span>
+              </div>
+              {Object.entries(usersList).length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => setUsersExpanded(!usersExpanded)}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-white/[0.02] hover:bg-white/[0.06] border border-white/[0.05] text-[9px] font-black text-indigo-400 hover:text-indigo-300 rounded-lg transition-all cursor-pointer select-none uppercase tracking-wider"
+                >
+                  <span>{usersExpanded ? 'Show Less' : `Show All (${Object.entries(usersList).length})`}</span>
+                  {usersExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {Object.entries(usersList).map(([sid, uProfile]) => {
+              {(usersExpanded ? Object.entries(usersList) : Object.entries(usersList).slice(0, 2)).map(([sid, uProfile]) => {
                 const isUserAway = uProfile.status === 'Away';
                 const isUserOffline = uProfile.status === 'Offline';
                 const isCurrentUser = uProfile.name === userName;
@@ -1904,7 +1917,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
           {/* Scrollable Room Footer */}
           {/* Scrollable Room Footer (Floating Glass Pill) */}
-          <footer className="w-full max-w-2xl mt-16 mb-6 px-6 py-3 border border-white/[0.04] bg-slate-950/35 backdrop-blur-md rounded-2xl text-center text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+          <footer className="w-full max-w-2xl mt-auto mb-6 px-6 py-3 border border-white/[0.04] bg-slate-950/35 backdrop-blur-md rounded-2xl text-center text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
             <div className="flex flex-wrap justify-center items-center gap-1">
               <span>&copy; {new Date().getFullYear()} Movie Dekhba</span>
               <span className="text-slate-700">&bull;</span>
@@ -1943,8 +1956,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
               {messages.length === 0 ? (
                 <div className="flex-grow flex flex-col items-center justify-center text-center p-6 text-slate-500">
                   <MessageSquare className="h-8 w-8 text-slate-700 mb-2" />
-                  <p className="text-xs">No messages yet.</p>
-                  <p className="text-[10px] mt-1">Send a message to start conversation!</p>
+                  <p className="text-xs font-bold text-slate-400">No messages yet</p>
+                  <p className="text-[10px] text-slate-500/90 mt-1">Start chatting with your friends!</p>
                 </div>
               ) : (
                 messages.map((msg) => {
@@ -1954,17 +1967,17 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                       key={msg.id} 
                       className={`flex flex-col max-w-[85%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
                     >
-                      <span className="text-[10px] text-slate-500 font-semibold mb-1 px-1">{msg.sender}</span>
+                      <span className="text-[9px] text-slate-500 font-bold mb-1 px-1">{msg.sender}</span>
                       
-                      <div className={`p-2.5 rounded-xl text-xs leading-relaxed ${
+                      <div className={`p-3 rounded-2xl text-xs leading-relaxed ${
                         isMe 
-                          ? 'bg-indigo-600 text-white rounded-tr-none' 
-                          : 'bg-slate-800 text-slate-200 rounded-tl-none border border-slate-700/50'
+                          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-tr-none shadow-md shadow-indigo-600/5' 
+                          : 'bg-[#0f1422]/80 text-slate-200 rounded-tl-none border border-white/[0.05] backdrop-blur-sm shadow-sm'
                       }`}>
                         {msg.text}
                       </div>
 
-                      <span className="text-[9px] text-slate-600 mt-1 px-1">
+                      <span className="text-[8px] text-slate-600 mt-1 px-1">
                         {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
@@ -1974,20 +1987,21 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
               <div ref={chatEndRef} />
             </div>
 
-            <form onSubmit={handleSendChat} className="p-4 border-t border-slate-800/80 bg-slate-950/20">
+            <form onSubmit={handleSendChat} className="p-4 border-t border-white/[0.04] bg-slate-950/20">
               <div className="flex gap-2">
                 <input
                   type="text"
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Type message..."
-                  className="flex-grow py-2 px-3 rounded-lg text-xs glass-input"
+                  placeholder="Say something to the lounge..."
+                  className="flex-grow py-2.5 px-4 rounded-xl text-xs text-slate-100 tracking-wide border border-white/[0.06] bg-slate-900/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_12px_rgba(99,102,241,0.12)] placeholder:text-slate-500 transition-all duration-300 outline-none"
                 />
                 <button
                   type="submit"
-                  className="p-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-white transition-colors active:scale-95"
+                  disabled={!chatInput.trim()}
+                  className="p-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 disabled:opacity-50 disabled:pointer-events-none rounded-xl text-white transition-all shadow-md shadow-indigo-600/10 active:scale-95 flex items-center justify-center cursor-pointer"
                 >
-                  <Send className="h-4.5 w-4.5" />
+                  <Send className="h-4 w-4" />
                 </button>
               </div>
             </form>
