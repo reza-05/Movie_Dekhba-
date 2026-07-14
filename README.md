@@ -19,8 +19,6 @@ Leveraging pure peer-to-peer playback synchronization, Movie Dekhba removes the 
 ### 🎬 Watch Lounge & Interactive Controls
 ![Watch Lounge View](docs/room_view.png)
 
-### 📱 Responsive Mobile Sync Layout
-![Mobile Responsive View](docs/mobile_responsiveness.png)
 
 ---
 
@@ -34,7 +32,6 @@ Leveraging pure peer-to-peer playback synchronization, Movie Dekhba removes the 
 - 💬 **Live Chat with Reactions & GIFs:** Premium glassmorphic chat drawer containing Emoji reactions and integrated Giphy GIF searches to react to movie highlights instantly.
 - 💾 **Persistent Chat History:** The server persists chat conversations for the duration of the room's lifetime. Returning or late-joining users instantly retrieve the complete chat timeline.
 - 🆔 **Device & IP Reconciliation:** Uses persistent device signatures (`localStorage` device ID) to reconcile disconnected users. If a user rejoins under a new name, their record updates in-place without duplicating the room's total viewer count.
-- 📱 **Fully Responsive Layout:** Fully optimized for mobile screens. Streamlined font sizing and collapsible presence lists ensure controls and video elements are easily accessible without scrolling.
 
 ---
 
