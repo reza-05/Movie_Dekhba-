@@ -183,18 +183,18 @@ body {
 }
 
 @keyframes textFlicker {
-  0%, 100% { color: rgba(254, 240, 138, 0.95); text-shadow: 0 0 10px rgba(254, 240, 138, 0.3); }
-  5% { color: rgba(254, 240, 138, 0.8); text-shadow: 0 0 6px rgba(254, 240, 138, 0.15); }
-  10% { color: rgba(254, 240, 138, 1); text-shadow: 0 0 14px rgba(254, 240, 138, 0.45); }
-  15% { color: rgba(254, 240, 138, 0.7); text-shadow: 0 0 4px rgba(254, 240, 138, 0.1); }
-  20% { color: rgba(254, 240, 138, 0.95); text-shadow: 0 0 11px rgba(254, 240, 138, 0.35); }
-  30% { color: rgba(254, 240, 138, 0.85); text-shadow: 0 0 7px rgba(254, 240, 138, 0.2); }
-  40% { color: rgba(254, 240, 138, 1); text-shadow: 0 0 16px rgba(254, 240, 138, 0.5); }
-  50% { color: rgba(254, 240, 138, 0.9); text-shadow: 0 0 9px rgba(254, 240, 138, 0.25); }
-  60% { color: rgba(254, 240, 138, 0.95); text-shadow: 0 0 12px rgba(254, 240, 138, 0.38); }
-  70% { color: rgba(254, 240, 138, 0.75); text-shadow: 0 0 5px rgba(254, 240, 138, 0.12); }
-  80% { color: rgba(254, 240, 138, 1); text-shadow: 0 0 15px rgba(254, 240, 138, 0.42); }
-  90% { color: rgba(254, 240, 138, 0.88); text-shadow: 0 0 8px rgba(254, 240, 138, 0.28); }
+  0%, 100% { color: rgba(255, 255, 255, 0.95); text-shadow: 0 0 10px rgba(255, 255, 255, 0.25); }
+  5% { color: rgba(226, 232, 240, 0.75); text-shadow: 0 0 5px rgba(255, 255, 255, 0.1); }
+  10% { color: rgba(255, 255, 255, 1); text-shadow: 0 0 14px rgba(255, 255, 255, 0.4); }
+  15% { color: rgba(203, 213, 225, 0.65); text-shadow: 0 0 3px rgba(255, 255, 255, 0.08); }
+  20% { color: rgba(255, 255, 255, 0.95); text-shadow: 0 0 11px rgba(255, 255, 255, 0.3); }
+  30% { color: rgba(241, 245, 249, 0.85); text-shadow: 0 0 7px rgba(255, 255, 255, 0.18); }
+  40% { color: rgba(255, 255, 255, 1); text-shadow: 0 0 16px rgba(255, 255, 255, 0.45); }
+  50% { color: rgba(248, 250, 252, 0.9); text-shadow: 0 0 9px rgba(255, 255, 255, 0.22); }
+  60% { color: rgba(255, 255, 255, 0.95); text-shadow: 0 0 12px rgba(255, 255, 255, 0.32); }
+  70% { color: rgba(226, 232, 240, 0.75); text-shadow: 0 0 4px rgba(255, 255, 255, 0.1); }
+  80% { color: rgba(255, 255, 255, 1); text-shadow: 0 0 15px rgba(255, 255, 255, 0.42); }
+  90% { color: rgba(241, 245, 249, 0.88); text-shadow: 0 0 8px rgba(255, 255, 255, 0.22); }
 }
 
 .animate-beam-flicker {

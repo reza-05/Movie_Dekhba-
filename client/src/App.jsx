@@ -218,9 +218,9 @@ function App() {
             <svg className="w-16 h-16 text-indigo-400 overflow-visible absolute top-[-8px] left-0" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="nav-projector-light" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#fef08a" stopOpacity="0.6" />
-                  <stop offset="50%" stopColor="#fef08a" stopOpacity="0.25" />
-                  <stop offset="100%" stopColor="#fef08a" stopOpacity="0" />
+                  <stop offset="0%" stopColor="#ffffff" stopOpacity="0.65" />
+                  <stop offset="50%" stopColor="#ffffff" stopOpacity="0.25" />
+                  <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
                 </linearGradient>
               </defs>
 
@@ -233,7 +233,7 @@ function App() {
 
               {/* Projector Body (Deep Slate/Black) */}
               <rect x="35" y="45" width="30" height="18" rx="2" fill="#0f172a" stroke="#475569" strokeWidth="2" />
-              <rect x="65" y="48" width="6" height="12" rx="1" fill="#fef08a" stroke="#475569" strokeWidth="1.5" className="animate-pulse" />
+              <rect x="65" y="48" width="6" height="12" rx="1" fill="#ffffff" stroke="#475569" strokeWidth="1.5" className="animate-pulse" />
               <line x1="38" y1="58" x2="62" y2="58" stroke="#475569" strokeWidth="2" />
               
               {/* Tripod Stand */}
@@ -268,7 +268,10 @@ function App() {
               </g>
             </svg>
           </div>
-          <span className="text-base font-bold tracking-tight font-sans animate-text-flicker select-none ml-[-6px]">
+          <span 
+            className="text-xs tracking-[0.22em] uppercase font-bold animate-text-flicker select-none ml-[-4px]"
+            style={{ fontFamily: '"Outfit", sans-serif' }}
+          >
             Movie Dekhba
           </span>
         </div>
