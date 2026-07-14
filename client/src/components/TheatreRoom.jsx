@@ -702,6 +702,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     const handleVisibilityChange = () => {
       if (!socket.current || !socketConnected) return;
 
+      // Only watch presence if a movie file is actively loaded and ready
+      if (!videoSrc && !youtubeUrl) return;
+
       const status = document.visibilityState === 'hidden' ? 'Away' : 'Active';
 
       if (status === 'Away') {
@@ -738,7 +741,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [socketConnected]);
+  }, [socketConnected, videoSrc, youtubeUrl]);
 
   // 3. Auto-scroll Chat to bottom
   useEffect(() => {
