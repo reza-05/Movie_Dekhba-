@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { Server as TrackerServer } from 'bittorrent-tracker';
-import { checkR2Status, generateUploadUrl } from './r2Service.js';
+import { checkR2Status, generateUploadUrl, deleteR2Object } from './r2Service.js';
 
 dotenv.config();
 
@@ -44,6 +44,17 @@ app.get('/api/r2-upload-url', async (req, res) => {
 
   try {
     const urls = await generateUploadUrl(fileName, fileType);
+    
+    // Automatically delete the object from R2 after 4 hours to recycle storage space
+    setTimeout(async () => {
+      try {
+        console.log(`[R2 Service] Auto-cleanup timer triggered for key: ${urls.key}`);
+        await deleteR2Object(urls.key);
+      } catch (err) {
+        console.error(`[R2 Service] Auto-cleanup failed for key ${urls.key}:`, err.message);
+      }
+    }, 4 * 60 * 60 * 1000); // 4 hours
+    
     res.json(urls);
   } catch (error) {
     console.error('Error generating presigned URL:', error);

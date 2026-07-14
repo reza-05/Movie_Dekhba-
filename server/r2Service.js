@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import dotenv from 'dotenv';
 
@@ -71,4 +71,22 @@ export const generateUploadUrl = async (fileName, fileType) => {
   }
 
   return { uploadUrl, publicUrl, key };
+};
+
+/**
+ * Delete an object from the R2 bucket by its key
+ * @param {string} key Unique object key in R2
+ */
+export const deleteR2Object = async (key) => {
+  if (!checkR2Status() || !s3Client) {
+    throw new Error('R2 is not initialized or configured.');
+  }
+
+  const command = new DeleteObjectCommand({
+    Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
+    Key: key,
+  });
+
+  await s3Client.send(command);
+  console.log(`[R2 Service] Automatically deleted expired R2 object: ${key}`);
 };
