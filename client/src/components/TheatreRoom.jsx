@@ -1803,7 +1803,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                   const activeCue = getActiveSubtitleCue();
                   if (!activeCue) return null;
                   return (
-                    <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 bg-black/80 px-4 py-2 rounded-xl text-center border border-white/[0.08] backdrop-blur-md max-w-[85%] text-slate-100 font-medium text-xs sm:text-sm md:text-base pointer-events-none select-none tracking-wide z-20 shadow-xl whitespace-pre-line leading-relaxed">
+                    <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-black/80 px-4 py-2 rounded-xl text-center border border-white/[0.08] backdrop-blur-md max-w-[85%] text-slate-100 font-medium text-xs sm:text-sm md:text-base pointer-events-none select-none tracking-wide z-20 shadow-xl whitespace-pre-line leading-relaxed">
                       {activeCue.text}
                     </div>
                   );
