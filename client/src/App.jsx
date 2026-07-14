@@ -225,7 +225,7 @@ function App() {
       />
 
       {/* Top Header/Navbar */}
-      <header className="px-6 md:px-12 py-5 flex items-center justify-between border-b border-white/[0.04] bg-slate-950/45 backdrop-blur-xl sticky top-0 z-50 animate-slide-down">
+      <header className="px-6 md:px-12 py-3.5 flex items-center justify-between border-b border-white/[0.04] bg-slate-950/45 backdrop-blur-xl sticky top-0 z-50 animate-slide-down">
         <div className="flex items-center gap-1 group cursor-pointer relative">
           {/* Custom Animated Vintage Projector Icon */}
           <div className="w-16 h-12 flex items-center justify-center relative overflow-visible mt-[-2px]">

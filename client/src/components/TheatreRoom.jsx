@@ -1437,7 +1437,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   return (
     <div className="min-h-screen bg-[#02040a] flex flex-col text-slate-100 font-sans">
       {/* Room Header */}
-      <header className="px-6 py-4 flex flex-col sm:flex-row items-center justify-between border-b border-white/[0.04] bg-slate-950/45 backdrop-blur-xl gap-4">
+      <header className="px-6 py-3 flex flex-col sm:flex-row items-center justify-between border-b border-white/[0.04] bg-slate-950/45 backdrop-blur-xl gap-4">
         <div className="flex items-center gap-4 w-full sm:w-auto">
           <button 
             onClick={onLeave}
