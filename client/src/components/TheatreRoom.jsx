@@ -4,7 +4,7 @@ import {
   Play, Pause, Volume2, Users, Send, Video, 
   ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles,
   RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles, ChevronLeft, ChevronRight,
-  MoreVertical, ChevronUp, ChevronDown, Smile, Search
+  MoreVertical, ChevronUp, ChevronDown, Smile, Search, Upload
 } from 'lucide-react';
 
 function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId, onLeave }) {
@@ -54,6 +54,13 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const youtubePlayerRef = useRef(null);
   const isRespondingToSocket = useRef(false);
 
+  // Subtitle States
+  const [subtitleCues, setSubtitleCues] = useState([]);
+  const [subtitleName, setSubtitleName] = useState('');
+  const [subtitleOffset, setSubtitleOffset] = useState(0.0);
+  const [syncWithHostSubtitle, setSyncWithHostSubtitle] = useState(true);
+  const [showSubtitlePanel, setShowSubtitlePanel] = useState(false);
+
   // Custom Player Controls State
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -61,7 +68,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const [volume, setVolume] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   
-  const [subtitlesEnabled, setSubtitlesEnabled] = useState(false);
+  const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
   const [controlsVisible, setControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef(null);
 
@@ -86,6 +93,117 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     playerNotificationTimeoutRef.current = setTimeout(() => {
       setPlayerNotification('');
     }, 3000);
+  };
+
+  const parseTimestampToSeconds = (ts) => {
+    const cleanTs = ts.trim().replace(',', '.');
+    const parts = cleanTs.split(':');
+    let hours = 0;
+    let minutes = 0;
+    let seconds = 0;
+
+    if (parts.length === 3) {
+      hours = parseFloat(parts[0]) || 0;
+      minutes = parseFloat(parts[1]) || 0;
+      seconds = parseFloat(parts[2]) || 0;
+    } else if (parts.length === 2) {
+      minutes = parseFloat(parts[0]) || 0;
+      seconds = parseFloat(parts[1]) || 0;
+    } else {
+      seconds = parseFloat(cleanTs) || 0;
+    }
+
+    return hours * 3600 + minutes * 60 + seconds;
+  };
+
+  const parseSubtitleText = (text) => {
+    const lines = text.replace(/\r\n/g, '\n').split('\n');
+    const cues = [];
+    let currentCue = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      if (!line) {
+        if (currentCue) {
+          cues.push(currentCue);
+          currentCue = null;
+        }
+        continue;
+      }
+
+      if (line.includes('-->')) {
+        const parts = line.split('-->');
+        if (parts.length === 2) {
+          const startSecs = parseTimestampToSeconds(parts[0]);
+          const endSecs = parseTimestampToSeconds(parts[1]);
+          
+          if (currentCue) {
+            cues.push(currentCue);
+          }
+
+          currentCue = {
+            start: startSecs,
+            end: endSecs,
+            text: ''
+          };
+        }
+      } else if (currentCue) {
+        // Skip cue indices (numbers at start of block)
+        if (/^\d+$/.test(line) && currentCue.text === '') {
+          continue;
+        }
+        // Skip WEBVTT header
+        if (line.toUpperCase() === 'WEBVTT' && currentCue.text === '') {
+          continue;
+        }
+        if (currentCue.text !== '') {
+          currentCue.text += '\n' + line;
+        } else {
+          currentCue.text = line;
+        }
+      }
+    }
+
+    if (currentCue) {
+      cues.push(currentCue);
+    }
+
+    return cues.sort((a, b) => a.start - b.start);
+  };
+
+  const handleSubtitleUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const parsedCues = parseSubtitleText(text);
+      
+      setSubtitleCues(parsedCues);
+      setSubtitleName(file.name);
+      
+      if (isHost && socket.current) {
+        socket.current.emit('update-subtitle', { cues: parsedCues, filename: file.name });
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const updateSubtitleOffset = (newOffset) => {
+    const roundedOffset = Math.round(newOffset * 100) / 100;
+    setSubtitleOffset(roundedOffset);
+
+    if (isHost && socket.current) {
+      socket.current.emit('sync-subtitle-offset', { offset: roundedOffset });
+    }
+  };
+
+  const getActiveSubtitleCue = () => {
+    if (!subtitlesEnabled || subtitleCues.length === 0) return null;
+    const adjustedTime = currentTime + subtitleOffset;
+    return subtitleCues.find(cue => adjustedTime >= cue.start && adjustedTime <= cue.end);
   };
 
   const initialVideoState = useRef(null);
@@ -535,6 +653,27 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     socket.current.on('guest-reset', () => {
       setIsGuestReady(false);
       setGuestProgress(0);
+    });
+
+    socket.current.on('subtitle-updated', (subtitles) => {
+      if (subtitles) {
+        setSubtitleCues(subtitles.cues || []);
+        setSubtitleName(subtitles.filename || '');
+        setSubtitleOffset(subtitles.offset || 0.0);
+      } else {
+        setSubtitleCues([]);
+        setSubtitleName('');
+        setSubtitleOffset(0.0);
+      }
+    });
+
+    socket.current.on('subtitle-offset-synced', ({ offset }) => {
+      setSyncWithHostSubtitle((prevSync) => {
+        if (prevSync) {
+          setSubtitleOffset(offset);
+        }
+        return prevSync;
+      });
     });
 
     return () => {
@@ -988,29 +1127,6 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       if (trackingInterval) clearInterval(trackingInterval);
     };
   }, [youtubeUrl]);
-
-  const toggleSubtitles = () => {
-    const nextState = !subtitlesEnabled;
-    setSubtitlesEnabled(nextState);
-
-    // HTML5 Video track toggle
-    if (videoRef.current && videoRef.current.textTracks) {
-      for (let i = 0; i < videoRef.current.textTracks.length; i++) {
-        videoRef.current.textTracks[i].mode = nextState ? 'showing' : 'hidden';
-      }
-    }
-
-    // YouTube captions toggle
-    if (youtubePlayerRef.current) {
-      try {
-        if (nextState) {
-          youtubePlayerRef.current.loadModule('captions');
-        } else {
-          youtubePlayerRef.current.unloadModule('captions');
-        }
-      } catch (err) {}
-    }
-  };
 
   const handleMouseMove = () => {
     setControlsVisible(true);
@@ -1660,6 +1776,17 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                   </div>
                 )}
 
+                {/* Active Subtitle Overlay */}
+                {(() => {
+                  const activeCue = getActiveSubtitleCue();
+                  if (!activeCue) return null;
+                  return (
+                    <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 bg-black/80 px-4 py-2 rounded-xl text-center border border-white/[0.08] backdrop-blur-md max-w-[85%] text-slate-100 font-medium text-xs sm:text-sm md:text-base pointer-events-none select-none tracking-wide z-20 shadow-xl whitespace-pre-line leading-relaxed">
+                      {activeCue.text}
+                    </div>
+                  );
+                })()}
+
                 {youtubeUrl ? (
                   <div className="w-full h-full pointer-events-none">
                     <div id="yt-player" className="w-full h-full"></div>
@@ -1783,17 +1910,142 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
                     <div className="flex items-center gap-4">
                       {/* Subtitles Toggle CC Button */}
-                      <button 
-                        onClick={toggleSubtitles} 
-                        className={`p-1 rounded-md transition-colors ${
-                          subtitlesEnabled 
-                            ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20' 
-                            : 'text-slate-400 hover:text-white hover:bg-white/5'
-                        }`}
-                        title="Toggle Subtitles"
-                      >
-                        <Subtitles className="h-4 w-4" />
-                      </button>
+                      <div className="relative">
+                        <button 
+                          onClick={() => setShowSubtitlePanel(!showSubtitlePanel)} 
+                          className={`p-1 rounded-md transition-colors cursor-pointer ${
+                            subtitlesEnabled && subtitleCues.length > 0
+                              ? 'text-indigo-400 bg-indigo-500/10 border border-indigo-500/20' 
+                              : 'text-slate-400 hover:text-white hover:bg-white/5'
+                          }`}
+                          title="Subtitle Settings"
+                        >
+                          <Subtitles className="h-4 w-4" />
+                        </button>
+
+                        {/* Glassmorphic Subtitle Panel Popover */}
+                        {showSubtitlePanel && (
+                          <div className="absolute bottom-8 right-0 mb-2 w-64 bg-slate-950/95 border border-white/[0.08] rounded-2xl shadow-2xl p-4 flex flex-col gap-3 backdrop-blur-md z-50 text-left select-none animate-scale-up">
+                            <div className="flex items-center justify-between border-b border-white/[0.05] pb-2">
+                              <span className="font-extrabold text-[11px] text-white uppercase tracking-wider">Subtitles Settings</span>
+                              <button 
+                                onClick={() => setShowSubtitlePanel(false)}
+                                className="p-1 rounded-md hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </div>
+
+                            {/* Subtitles ON/OFF Switch */}
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-slate-400 font-semibold">Enable Subtitles</span>
+                              <button
+                                onClick={() => setSubtitlesEnabled(!subtitlesEnabled)}
+                                className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer ${
+                                  subtitlesEnabled ? 'bg-indigo-600' : 'bg-slate-800'
+                                }`}
+                              >
+                                <div className={`w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${
+                                  subtitlesEnabled ? 'translate-x-3.5' : 'translate-x-0'
+                                }`} />
+                              </button>
+                            </div>
+
+                            {/* Upload Subtitle File */}
+                            <div className="flex flex-col gap-1.5">
+                              <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Subtitle File</span>
+                              {subtitleName ? (
+                                <div className="flex items-center justify-between p-2 bg-white/[0.02] border border-white/[0.04] rounded-lg text-[10px] text-slate-300">
+                                  <span className="truncate max-w-[150px] font-semibold">{subtitleName}</span>
+                                  <button
+                                    onClick={() => {
+                                      setSubtitleCues([]);
+                                      setSubtitleName('');
+                                      if (isHost && socket.current) {
+                                        socket.current.emit('update-subtitle', { cues: [], filename: '' });
+                                      }
+                                    }}
+                                    className="text-rose-400 hover:text-rose-300 font-bold ml-1 cursor-pointer"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ) : (
+                                <label className="flex items-center justify-center gap-1.5 py-2 px-3 bg-indigo-600/10 hover:bg-indigo-600/20 border border-indigo-500/20 text-indigo-400 rounded-lg text-[10px] font-extrabold tracking-wide transition-all cursor-pointer text-center">
+                                  <Upload className="h-3.5 w-3.5" />
+                                  <span>Choose SRT / VTT</span>
+                                  <input 
+                                    type="file" 
+                                    accept=".srt,.vtt" 
+                                    onChange={handleSubtitleUpload}
+                                    className="hidden" 
+                                  />
+                                </label>
+                              )}
+                            </div>
+
+                            {/* Sync Subtitles (for guests only) */}
+                            {!isHost && (
+                              <div className="flex items-center justify-between text-xs border-t border-white/[0.03] pt-2">
+                                <span className="text-slate-400 font-semibold">Sync with Host</span>
+                                <button
+                                  onClick={() => setSyncWithHostSubtitle(!syncWithHostSubtitle)}
+                                  className={`w-8 h-4.5 rounded-full p-0.5 transition-colors duration-200 cursor-pointer ${
+                                    syncWithHostSubtitle ? 'bg-indigo-600' : 'bg-slate-800'
+                                  }`}
+                                >
+                                  <div className={`w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200 ${
+                                    syncWithHostSubtitle ? 'translate-x-3.5' : 'translate-x-0'
+                                  }`} />
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Delay / Offset Controls (0.25s step) */}
+                            <div className="flex flex-col gap-1.5 border-t border-white/[0.05] pt-2">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Subtitle Delay</span>
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                  subtitleOffset === 0 
+                                    ? 'text-slate-400 bg-slate-800/40' 
+                                    : subtitleOffset > 0 
+                                    ? 'text-emerald-400 bg-emerald-500/10' 
+                                    : 'text-rose-400 bg-rose-500/10'
+                                }`}>
+                                  {subtitleOffset > 0 ? `+${subtitleOffset.toFixed(2)}s` : `${subtitleOffset.toFixed(2)}s`}
+                                </span>
+                              </div>
+                              
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => updateSubtitleOffset(subtitleOffset - 0.25)}
+                                  disabled={!isHost && syncWithHostSubtitle}
+                                  className="flex-1 py-1 px-2 bg-white/[0.02] hover:bg-white/[0.08] disabled:opacity-30 disabled:pointer-events-none border border-white/[0.05] hover:border-white/[0.08] text-slate-300 font-bold text-[10px] rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                                >
+                                  -0.25s
+                                </button>
+                                <button
+                                  onClick={() => updateSubtitleOffset(0.0)}
+                                  disabled={!isHost && syncWithHostSubtitle}
+                                  className="py-1 px-2.5 bg-white/[0.02] hover:bg-white/[0.08] disabled:opacity-30 disabled:pointer-events-none border border-white/[0.05] hover:border-white/[0.08] text-slate-400 hover:text-white font-bold text-[9px] rounded-lg transition-all cursor-pointer"
+                                >
+                                  Reset
+                                </button>
+                                <button
+                                  onClick={() => updateSubtitleOffset(subtitleOffset + 0.25)}
+                                  disabled={!isHost && syncWithHostSubtitle}
+                                  className="flex-1 py-1 px-2 bg-white/[0.02] hover:bg-white/[0.08] disabled:opacity-30 disabled:pointer-events-none border border-white/[0.05] hover:border-white/[0.08] text-slate-300 font-bold text-[10px] rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                                >
+                                  +0.25s
+                                </button>
+                              </div>
+                              {!isHost && syncWithHostSubtitle && (
+                                <span className="text-[9px] text-slate-500 text-center italic mt-0.5">Delay is synced with Host. Unsync to adjust.</span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
 
                       {/* Volume Control */}
                       <div className="flex items-center gap-2">

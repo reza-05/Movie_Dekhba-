@@ -155,6 +155,7 @@ io.on('connection', (socket) => {
       fileSize: 0,
       youtubeUrl: null,
       cloudUrl: null,
+      subtitles: null,
     };
 
     rooms.set(roomCode, roomData);
@@ -225,6 +226,9 @@ io.on('connection', (socket) => {
     
     // Emit persistent chat history to the newly joined client
     socket.emit('chat-history', room.chatHistory || []);
+    
+    // Emit persistent subtitles to the newly joined client
+    socket.emit('subtitle-updated', room.subtitles || null);
 
     // Notify the room about the new user and state
     io.to(code).emit('room-updated', {
@@ -254,6 +258,38 @@ io.on('connection', (socket) => {
     // Broadcast magnet to other users in the room
     socket.to(currentRoomCode).emit('share-torrent', { magnetURI, fileName, fileSize, youtubeUrl, cloudUrl });
     console.log(`[${currentRoomCode}] Shared Torrent Magnet / YouTube / Cloud: ${youtubeUrl || cloudUrl || magnetURI}`);
+  });
+
+  // Handle subtitle upload & sync
+  socket.on('update-subtitle', ({ cues, filename }) => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
+    const room = rooms.get(currentRoomCode);
+
+    room.subtitles = {
+      cues,
+      filename,
+      offset: room.subtitles ? room.subtitles.offset : 0.0
+    };
+
+    // Broadcast subtitle update to all guests
+    socket.to(currentRoomCode).emit('subtitle-updated', room.subtitles);
+    console.log(`[${currentRoomCode}] Subtitles updated: ${filename} (${cues ? cues.length : 0} cues)`);
+  });
+
+  // Handle subtitle delay offset sync
+  socket.on('sync-subtitle-offset', ({ offset }) => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
+    const room = rooms.get(currentRoomCode);
+
+    if (room.subtitles) {
+      room.subtitles.offset = offset;
+    } else {
+      room.subtitles = { cues: null, filename: null, offset };
+    }
+
+    // Broadcast new offset to guests
+    socket.to(currentRoomCode).emit('subtitle-offset-synced', { offset });
+    console.log(`[${currentRoomCode}] Subtitle offset synced by host: ${offset}s`);
   });
 
   // Socket streaming fallback events (for localhost loopback / strict NAT environments)
