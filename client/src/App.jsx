@@ -293,7 +293,8 @@ function App() {
                 style={{
                   fontSize: 'clamp(2.25rem, 6.2vw - 0.5rem, 5rem)',
                   lineHeight: '1.16',
-                  letterSpacing: '-0.025em'
+                  letterSpacing: '-0.025em',
+                  wordSpacing: '0.15em'
                 }}
               >
                 Watch movies{" "}<br className="hidden lg:block" />
