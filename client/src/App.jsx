@@ -309,7 +309,7 @@ function App() {
               <p 
                 className="text-slate-400/90 mx-auto lg:mx-0 font-medium"
                 style={{
-                  fontSize: 'clamp(0.875rem, 0.2vw + 0.8rem, 1.05rem)',
+                  fontSize: 'clamp(0.775rem, 0.2vw + 0.75rem, 1rem)',
                   lineHeight: '1.6',
                   maxWidth: '34rem'
                 }}
