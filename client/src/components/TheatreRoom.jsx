@@ -526,6 +526,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       const blob = new Blob(sortedChunks, { type: 'video/mp4' });
       const url = URL.createObjectURL(blob);
       
+      // Clear chunks from memory immediately to avoid Out of Memory (OOM) crashes on large files
+      receivedChunksMap.current = {};
+      sortedChunks.length = 0;
+
       updateVideoSrc(url);
       setBufferStatus('Playback is ready!');
       transferActive.current = false;
@@ -1336,8 +1340,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     
     transferOffset.current = 0;
     ackedOffset.current = 0;
-    const chunkSize = 256 * 1024; // 256KB chunks for WebSocket stability
-    const windowSize = 6 * 1024 * 1024; // 6MB sliding window size (optimum for ping RTT vs memory buffer)
+    const chunkSize = 512 * 1024; // 512KB chunks for WebSocket stability and high throughput
+    const windowSize = 10 * 1024 * 1024; // 10MB sliding window size (optimum for throughput vs memory buffer)
 
     const sendNext = () => {
       if (transferOffset.current >= file.size) {
