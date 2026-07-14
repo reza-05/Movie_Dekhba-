@@ -69,6 +69,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
   const [playerNotification, setPlayerNotification] = useState('');
   const playerNotificationTimeoutRef = useRef(null);
+  const isSeekingFromSocket = useRef(false);
 
   const showPlayerNotification = (text) => {
     setPlayerNotification(text);
@@ -387,9 +388,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
         setTimeout(() => { isRespondingToSocket.current = false; }, 300);
       } else if (videoRef.current) {
         isSyncing.current = true;
+        isSeekingFromSocket.current = true;
         videoRef.current.currentTime = currentTime;
         videoRef.current.play().catch(err => console.warn(err));
-        setTimeout(() => { isSyncing.current = false; }, 100);
+        setTimeout(() => { isSyncing.current = false; }, 500);
       }
     });
 
@@ -410,11 +412,12 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
         setTimeout(() => { isRespondingToSocket.current = false; }, 300);
       } else if (videoRef.current) {
         isSyncing.current = true;
+        isSeekingFromSocket.current = true;
         videoRef.current.pause();
         if (currentTime !== undefined) {
           videoRef.current.currentTime = currentTime;
         }
-        setTimeout(() => { isSyncing.current = false; }, 100);
+        setTimeout(() => { isSyncing.current = false; }, 500);
       }
     });
 
@@ -431,8 +434,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
         setTimeout(() => { isRespondingToSocket.current = false; }, 300);
       } else if (videoRef.current) {
         isSyncing.current = true;
+        isSeekingFromSocket.current = true;
         videoRef.current.currentTime = currentTime;
-        setTimeout(() => { isSyncing.current = false; }, 100);
+        setTimeout(() => { isSyncing.current = false; }, 500);
       }
     });
 
@@ -456,17 +460,18 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       
       if (youtubePlayerRef.current) {
         const ytTime = youtubePlayerRef.current.getCurrentTime();
-        if (Math.abs(ytTime - currentTime) > 0.8) {
+        if (Math.abs(ytTime - currentTime) > 1.5) {
           isRespondingToSocket.current = true;
           youtubePlayerRef.current.seekTo(currentTime, true);
           setTimeout(() => { isRespondingToSocket.current = false; }, 300);
         }
       } else if (videoRef.current) {
         const vidTime = videoRef.current.currentTime;
-        if (Math.abs(vidTime - currentTime) > 0.8) {
+        if (Math.abs(vidTime - currentTime) > 1.5) {
           isSyncing.current = true;
+          isSeekingFromSocket.current = true;
           videoRef.current.currentTime = currentTime;
-          setTimeout(() => { isSyncing.current = false; }, 200);
+          setTimeout(() => { isSyncing.current = false; }, 500);
         }
       }
     });
@@ -1225,6 +1230,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
       console.log(`[Sync] Late-join auto sync: Seeking local HTML5 video to ${targetTime}s`);
       
       isSyncing.current = true;
+      isSeekingFromSocket.current = true;
       e.target.currentTime = targetTime;
       if (initialVideoState.current.playing) {
         e.target.play().catch(err => console.warn(err));
@@ -1233,7 +1239,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
         e.target.pause();
         setIsPlaying(false);
       }
-      setTimeout(() => { isSyncing.current = false; }, 200);
+      setTimeout(() => { isSyncing.current = false; }, 500);
       initialVideoState.current = null;
     }
   };
@@ -1263,6 +1269,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
   };
 
   const handleLocalSeeked = () => {
+    if (isSeekingFromSocket.current) {
+      isSeekingFromSocket.current = false;
+      return;
+    }
     if (isSyncing.current) {
       isSyncing.current = false;
       return;
