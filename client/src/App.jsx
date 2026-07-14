@@ -282,11 +282,11 @@ function App() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-grow flex items-center justify-center px-4 sm:px-8 py-16 md:py-24 lg:py-32 relative z-10">
-        <div className="w-full max-w-6xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-12 lg:gap-16 xl:gap-20 items-center transform -translate-y-4 md:-translate-y-8 lg:-translate-y-12">
+      <main className="flex-grow flex items-center justify-center px-4 sm:px-8 py-6 sm:py-16 md:py-24 lg:py-32 relative z-10">
+        <div className="w-full max-w-6xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-8 lg:gap-16 xl:gap-20 items-center transform -translate-y-2 sm:-translate-y-4 md:-translate-y-8 lg:-translate-y-12">
           
           {/* Left Column: Clean Responsive Typography */}
-          <div className="lg:col-span-7 space-y-5 lg:space-y-6 text-center lg:text-left transform lg:-translate-y-4">
+          <div className="lg:col-span-7 space-y-4 lg:space-y-6 text-center lg:text-left transform lg:-translate-y-4">
             <div className="animate-slide-up [animation-delay:100ms] [animation-fill-mode:forwards]">
               <h1 
                 className="font-extrabold text-white"
@@ -319,21 +319,21 @@ function App() {
             </div>
 
             {/* Premium Feature Chips */}
-            <div className="flex flex-wrap gap-2.5 pt-4 justify-center lg:justify-start animate-slide-up [animation-delay:400ms] [animation-fill-mode:forwards]">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
-                <Zap className="h-3.5 w-3.5 text-indigo-400" />
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1.5 pt-3 sm:pt-4 animate-slide-up [animation-delay:400ms] [animation-fill-mode:forwards]">
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
                 <span>Instant Sync</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
-                <Tv className="h-3.5 w-3.5 text-indigo-400" />
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                <Tv className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
                 <span>HD Streaming</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
-                <FolderOpen className="h-3.5 w-3.5 text-indigo-400" />
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                <FolderOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
                 <span>Local Files</span>
               </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
-                <Lock className="h-3.5 w-3.5 text-indigo-400" />
+              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
                 <span>Private Rooms</span>
               </div>
             </div>
