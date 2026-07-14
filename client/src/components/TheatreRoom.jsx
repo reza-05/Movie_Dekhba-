@@ -53,6 +53,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const [youtubeInput, setYoutubeInput] = useState('');
   const youtubePlayerRef = useRef(null);
   const isRespondingToSocket = useRef(false);
+  const [unsupportedFile, setUnsupportedFile] = useState(null);
+  const [showFormatWarning, setShowFormatWarning] = useState(false);
 
   // Subtitle States
   const [subtitleCues, setSubtitleCues] = useState([]);
@@ -1277,18 +1279,31 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   // 4. Host File Handling (Drag & Drop + Traditional Input)
   const handleHostFileSelection = (file) => {
     if (file) {
-      setIsGuestReady(false);
-      setGuestProgress(0);
-      socket.current.emit('guest-reset');
+      const extension = file.name.split('.').pop().toLowerCase();
+      const isSupported = ['mp4', 'webm', 'ogg', 'mov'].includes(extension);
 
-      setYoutubeUrl(''); // Clear YouTube URL when switching back to local files
-      setVideoName(file.name);
-      
-      if (isR2Enabled) {
-        uploadFileToR2(file);
-      } else {
-        fallbackToLocalSeeding(file);
+      if (!isSupported) {
+        setUnsupportedFile(file);
+        setShowFormatWarning(true);
+        return;
       }
+
+      proceedWithFile(file);
+    }
+  };
+
+  const proceedWithFile = (file) => {
+    setIsGuestReady(false);
+    setGuestProgress(0);
+    socket.current.emit('guest-reset');
+
+    setYoutubeUrl(''); // Clear YouTube URL when switching back to local files
+    setVideoName(file.name);
+    
+    if (isR2Enabled) {
+      uploadFileToR2(file);
+    } else {
+      fallbackToLocalSeeding(file);
     }
   };
 
@@ -2479,6 +2494,78 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
           </div>
         </div>
       )}
+
+      {/* Unsupported Video Format Warning Modal */}
+      {showFormatWarning && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[110] p-6">
+          <div className="w-full max-w-lg bg-gradient-to-b from-[#0e0c12] to-[#050407] border border-white/[0.06] p-8 rounded-3xl shadow-2xl relative text-left">
+            <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-amber-500 to-rose-600 rounded-t-3xl"></div>
+            
+            <div className="h-14 w-14 rounded-full bg-rose-500/10 text-rose-400 flex items-center justify-center mx-auto mb-6">
+              <ShieldAlert className="h-7 w-7 animate-pulse" />
+            </div>
+            
+            <h3 className="text-xl font-bold text-white mb-2 text-center">Unsupported Video Format</h3>
+            <p className="text-sm text-slate-300 mb-6 text-center leading-relaxed">
+              The file "<span className="text-indigo-400 font-bold">{unsupportedFile?.name}</span>" is not natively supported by web browsers. 
+              Switching tabs, playing black screens, or failure to load might happen.
+            </p>
+
+            {/* Solutions List */}
+            <div className="bg-white/[0.02] border border-white/[0.04] rounded-2xl p-4 flex flex-col gap-3.5 mb-8 text-[11px] text-slate-400">
+              <div className="flex gap-2.5">
+                <span className="bg-indigo-500/10 text-indigo-400 px-2 py-0.5 rounded-md font-bold h-fit">Easy</span>
+                <div>
+                  <h4 className="font-bold text-white mb-0.5">Rename File Extension (Recommended)</h4>
+                  <p className="leading-relaxed">Change the filename ending from <span className="text-rose-400 font-mono font-bold">.mkv</span> to <span className="text-emerald-400 font-mono font-bold">.mp4</span> on your computer and select it again. The web player will play it directly!</p>
+                </div>
+              </div>
+              
+              <div className="border-t border-white/[0.03] pt-3.5 flex gap-2.5">
+                <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-md font-bold h-fit">Fast</span>
+                <div>
+                  <h4 className="font-bold text-white mb-0.5">Google Drive / Cloud Link</h4>
+                  <p className="leading-relaxed">Upload to Google Drive/OneDrive, paste the direct stream link in the "Cloud URL" field. Instantly plays anything without downloading!</p>
+                </div>
+              </div>
+
+              <div className="border-t border-white/[0.03] pt-3.5 flex gap-2.5">
+                <span className="bg-slate-500/10 text-slate-400 px-2 py-0.5 rounded-md font-bold h-fit">Safe</span>
+                <div>
+                  <h4 className="font-bold text-white mb-0.5">Standard MP4/WebM Video</h4>
+                  <p className="leading-relaxed">Select a web-compatible movie file format ending with <span className="text-indigo-400 font-mono">.mp4</span> or <span className="text-indigo-400 font-mono">.webm</span>.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => {
+                  setShowFormatWarning(false);
+                  setUnsupportedFile(null);
+                }}
+                className="flex-1 py-3 px-5 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer text-center"
+              >
+                Choose Another File
+              </button>
+              
+              <button
+                onClick={() => {
+                  setShowFormatWarning(false);
+                  if (unsupportedFile) {
+                    proceedWithFile(unsupportedFile);
+                  }
+                }}
+                className="flex-1 py-3 px-5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-amber-600/10 hover:shadow-amber-600/20 cursor-pointer text-center"
+              >
+                Force Try Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Pending Join Requests (Host perspective) */}
       {isHost && joinRequests.length > 0 && (
         <div className="fixed bottom-6 left-6 z-[100] flex flex-col gap-3 max-w-md w-full">
