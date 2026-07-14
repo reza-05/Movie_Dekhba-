@@ -233,17 +233,31 @@ function App() {
           {/* Left Column: Clean Responsive Typography */}
           <div className="lg:col-span-7 space-y-5 lg:space-y-6 text-center lg:text-left transform lg:-translate-y-4">
             <div className="animate-slide-up [animation-delay:100ms] [animation-fill-mode:forwards]">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-normal text-white leading-[1.2]">
+              <h1 
+                className="font-black text-white"
+                style={{
+                  fontSize: 'clamp(2.25rem, 6.2vw - 0.5rem, 5.25rem)',
+                  lineHeight: '1.02',
+                  letterSpacing: '-0.04em'
+                }}
+              >
                 Watch movies{" "}<br className="hidden lg:block" />
                 together with{" "}<br className="hidden lg:block" />
-                <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(99,102,241,0.18)]">
                   your friends
                 </span>
               </h1>
             </div>
             
             <div className="animate-slide-up [animation-delay:250ms] [animation-fill-mode:forwards]">
-              <p className="text-slate-400 text-sm sm:text-base md:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed font-semibold">
+              <p 
+                className="text-slate-400/90 mx-auto lg:mx-0 font-medium"
+                style={{
+                  fontSize: 'clamp(0.875rem, 0.2vw + 0.8rem, 1.05rem)',
+                  lineHeight: '1.6',
+                  maxWidth: '36rem'
+                }}
+              >
                 Direct high-speed movie rooms for you and your friends. Upload files from your local storage and watch them instantly with no size limits or quality loss.
               </p>
             </div>
