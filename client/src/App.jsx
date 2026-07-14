@@ -372,18 +372,20 @@ function App() {
       </main>
 
       {/* Footer Info */}
-      <footer className="py-5 border-t border-slate-900 bg-[#02040a] text-center text-[10px] text-slate-500 font-semibold uppercase tracking-wider relative z-10">
-        <span>
-          &copy; {new Date().getFullYear()} Movie Dekhba &bull; All Rights Reserved &bull; Developed by{' '}
+      <footer className="py-3 border-t border-slate-900 bg-[#02040a] text-center text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider relative z-10">
+        <div className="max-w-6xl mx-auto px-4 flex flex-wrap justify-center items-center gap-1">
+          <span>&copy; {new Date().getFullYear()} Movie Dekhba</span>
+          <span className="text-slate-700">&bull;</span>
+          <span>Developed by</span>
           <a 
             href="https://github.com/reza-05" 
             target="_blank" 
             rel="noopener noreferrer" 
-            className="text-indigo-400 hover:text-indigo-300 transition-colors hover:underline normal-case font-bold"
+            className="text-indigo-400 hover:text-indigo-300 transition-colors hover:underline normal-case font-bold ml-0.5"
           >
             reza-05
           </a>
-        </span>
+        </div>
       </footer>
     </div>
   );
