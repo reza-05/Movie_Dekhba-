@@ -236,8 +236,8 @@ function App() {
           {/* Left Column: Clean Responsive Typography */}
           <div className="lg:col-span-7 space-y-5 lg:space-y-6 text-center lg:text-left transform lg:-translate-y-4">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-normal text-white leading-[1.2]">
-              Watch movies<br className="hidden lg:block" />
-              together with<br className="hidden lg:block" />
+              Watch movies{" "}<br className="hidden lg:block" />
+              together with{" "}<br className="hidden lg:block" />
               <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent">
                 your friends
               </span>
