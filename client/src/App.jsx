@@ -292,8 +292,8 @@ function App() {
                 className="font-extrabold text-white"
                 style={{
                   fontSize: 'clamp(2.25rem, 6.2vw - 0.5rem, 5rem)',
-                  lineHeight: '1.1',
-                  letterSpacing: '-0.01em'
+                  lineHeight: '1.16',
+                  letterSpacing: '-0.025em'
                 }}
               >
                 Watch movies{" "}<br className="hidden lg:block" />
@@ -310,7 +310,7 @@ function App() {
                 style={{
                   fontSize: 'clamp(0.875rem, 0.2vw + 0.8rem, 1.05rem)',
                   lineHeight: '1.6',
-                  maxWidth: '36rem'
+                  maxWidth: '34rem'
                 }}
               >
                 Direct high-speed movie rooms for you and your friends. Upload files from your local storage and watch them instantly with no size limits or quality loss.
