@@ -1415,7 +1415,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
 
       {/* Main Workspace */}
       <div className="flex-grow flex flex-col md:flex-row relative overflow-y-auto md:overflow-hidden">
-        <div className="flex-grow w-full flex flex-col p-4 md:p-6 items-center justify-start md:justify-center overflow-y-auto h-[calc(100vh-80px)] relative">
+        <div className="flex-grow w-full flex flex-col p-4 md:p-6 items-center justify-start overflow-y-auto h-[calc(100vh-80px)] relative">
           
           {/* Floating pull tab if chat is closed */}
           {!chatOpen && (
@@ -1428,8 +1428,9 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
             </button>
           )}
 
-          {/* Status Bar */}
-          {bufferStatus && (
+          <div className="w-full max-w-5xl flex flex-col items-center my-auto">
+            {/* Status Bar */}
+            {bufferStatus && (
             <div className="w-full max-w-5xl mb-4 bg-indigo-950/20 border border-indigo-500/20 px-4 py-2.5 rounded-lg flex flex-col gap-2 text-xs text-indigo-300">
               <div className="flex items-center gap-2.5">
                 <Download className="h-4 w-4 text-indigo-400 animate-bounce" />
@@ -1879,6 +1880,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, onLeave }) {
               </a>
             </div>
           </footer>
+          </div>
         </div>
 
         {/* Collapsible Chat */}
