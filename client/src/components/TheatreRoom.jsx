@@ -55,6 +55,33 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const isRespondingToSocket = useRef(false);
   const [unsupportedFile, setUnsupportedFile] = useState(null);
   const [showFormatWarning, setShowFormatWarning] = useState(false);
+  const [activeSidebarTab, setActiveSidebarTab] = useState('chat');
+  const [catalogList, setCatalogList] = useState(() => {
+    const saved = localStorage.getItem('moviedekhba_catalog');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) {}
+    }
+    return [
+      {
+        id: '1',
+        title: 'Tears of Steel (Blender VFX)',
+        genre: 'Sci-Fi / CGI',
+        duration: '12m 14s',
+        thumbnail: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=500',
+        driveId: '1B_oB2L_fQ07U9wW29yC8W6c3D_xT1P9y'
+      },
+      {
+        id: '2',
+        title: 'Big Buck Bunny (Animation)',
+        genre: 'Comedy / Animation',
+        duration: '9m 56s',
+        thumbnail: 'https://images.unsplash.com/photo-1509281373149-e957c6296406?w=500',
+        driveId: '1_bunny_video_drive_id'
+      }
+    ];
+  });
+  const [newMovieTitle, setNewMovieTitle] = useState('');
+  const [newMovieLink, setNewMovieLink] = useState('');
 
   // Subtitle States
   const [subtitleCues, setSubtitleCues] = useState([]);
@@ -1307,6 +1334,97 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     }
   };
 
+  const getGoogleDriveStreamUrl = (urlOrId) => {
+    if (!urlOrId) return '';
+    let fileId = urlOrId.trim();
+    
+    const regExpD = /\/file\/d\/([a-zA-Z0-9_-]+)/;
+    const matchD = urlOrId.match(regExpD);
+    if (matchD && matchD[1]) {
+      fileId = matchD[1];
+    } else {
+      const regExpId = /[?&]id=([a-zA-Z0-9_-]+)/;
+      const matchId = urlOrId.match(regExpId);
+      if (matchId && matchId[1]) {
+        fileId = matchId[1];
+      }
+    }
+
+    const apiKey = import.meta.env.VITE_GOOGLE_API_KEY || '';
+    if (apiKey) {
+      return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
+    }
+    return `https://docs.google.com/uc?export=download&id=${fileId}`;
+  };
+
+  const handleSelectCatalogMovie = (movie) => {
+    if (!isHost) return;
+    
+    setYoutubeUrl('');
+    setVideoName(movie.title);
+    
+    const streamUrl = getGoogleDriveStreamUrl(movie.driveId);
+    
+    setIsGuestReady(true);
+    setGuestProgress(100);
+    
+    updateVideoSrc(streamUrl);
+    
+    if (socket.current) {
+      socket.current.emit('share-torrent', {
+        magnetURI: '',
+        fileName: movie.title,
+        fileSize: 0,
+        cloudUrl: streamUrl
+      });
+    }
+    
+    setActiveToast({
+      title: 'Catalog Movie Selected',
+      message: `Streaming "${movie.title}" from Google Drive.`
+    });
+  };
+
+  const handleAddCatalogMovie = (e) => {
+    e.preventDefault();
+    if (!newMovieTitle || !newMovieLink) return;
+    
+    let fileId = newMovieLink.trim();
+    const regExpD = /\/file\/d\/([a-zA-Z0-9_-]+)/;
+    const matchD = newMovieLink.match(regExpD);
+    if (matchD && matchD[1]) {
+      fileId = matchD[1];
+    }
+
+    const newMovie = {
+      id: Date.now().toString(),
+      title: newMovieTitle,
+      genre: 'Personal / Catalog',
+      duration: 'HD Video',
+      thumbnail: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500',
+      driveId: fileId
+    };
+
+    const updatedCatalog = [...catalogList, newMovie];
+    setCatalogList(updatedCatalog);
+    localStorage.setItem('moviedekhba_catalog', JSON.stringify(updatedCatalog));
+    
+    setNewMovieTitle('');
+    setNewMovieLink('');
+    
+    setActiveToast({
+      title: 'Movie Added',
+      message: `"${newMovieTitle}" has been added to your catalog.`
+    });
+  };
+
+  const handleDeleteCatalogMovie = (id, e) => {
+    e.stopPropagation();
+    const updatedCatalog = catalogList.filter(m => m.id !== id);
+    setCatalogList(updatedCatalog);
+    localStorage.setItem('moviedekhba_catalog', JSON.stringify(updatedCatalog));
+  };
+
   const handleHostFileChange = (e) => {
     const file = e.target.files[0];
     handleHostFileSelection(file);
@@ -2258,21 +2376,126 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
         {/* Collapsible Chat */}
         {chatOpen && (
           <aside className="w-full md:w-80 lg:w-96 border-t md:border-t-0 md:border-l border-white/[0.04] bg-slate-950/60 backdrop-blur-xl flex flex-col shadow-2xl relative z-10 h-[350px] md:h-auto">
-            <div className="px-4 py-3.5 border-b border-white/[0.04] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-indigo-400" />
-                <span className="font-bold text-sm text-white">Live Theatre Chat</span>
+            <div className="px-2 py-2 border-b border-white/[0.04] flex items-center justify-between bg-slate-950/40">
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setActiveSidebarTab('chat')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeSidebarTab === 'chat'
+                      ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/20'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span>Chat</span>
+                </button>
+                <button
+                  onClick={() => setActiveSidebarTab('catalog')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    activeSidebarTab === 'catalog'
+                      ? 'bg-indigo-600/20 text-indigo-400 border border-indigo-500/20'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <Video className="h-3.5 w-3.5" />
+                  <span>Catalog</span>
+                </button>
               </div>
               <button 
                 onClick={() => setChatOpen(false)}
-                className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white"
-                title="Minimize Chat"
+                className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer mr-1"
+                title="Minimize Sidebar"
               >
                 <ChevronRight className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="flex-grow p-4 overflow-y-auto flex flex-col gap-3">
+            {activeSidebarTab === 'catalog' ? (
+              <div className="flex-grow flex flex-col h-full overflow-hidden select-none">
+                {/* Add Movie Form (Host Only) */}
+                {isHost && (
+                  <form onSubmit={handleAddCatalogMovie} className="p-3 border-b border-white/[0.04] flex flex-col gap-2">
+                    <span className="text-[9px] text-slate-500 uppercase tracking-wider font-extrabold">Add Movie to Catalog</span>
+                    <input
+                      type="text"
+                      value={newMovieTitle}
+                      onChange={(e) => setNewMovieTitle(e.target.value)}
+                      placeholder="Movie Title..."
+                      className="py-2 px-3 rounded-lg text-xs text-slate-200 border border-white/[0.06] bg-slate-900/40 focus:border-indigo-500/60 transition-all outline-none"
+                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newMovieLink}
+                        onChange={(e) => setNewMovieLink(e.target.value)}
+                        placeholder="Google Drive Link or File ID..."
+                        className="flex-grow py-2 px-3 rounded-lg text-xs text-slate-200 border border-white/[0.06] bg-slate-900/40 focus:border-indigo-500/60 transition-all outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!newMovieTitle.trim() || !newMovieLink.trim()}
+                        className="px-3 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:pointer-events-none text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Movies List */}
+                <div className="flex-grow p-4 overflow-y-auto flex flex-col gap-3">
+                  {catalogList.length === 0 ? (
+                    <div className="flex-grow flex flex-col items-center justify-center text-center p-6 text-slate-500">
+                      <Video className="h-8 w-8 text-slate-700 mb-2" />
+                      <p className="text-xs font-bold text-slate-400">Catalog is empty</p>
+                      <p className="text-[10px] text-slate-500/90 mt-1">Host can add Google Drive links to stream instantly!</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2.5">
+                      {catalogList.map((movie) => (
+                        <div
+                          key={movie.id}
+                          onClick={() => isHost && handleSelectCatalogMovie(movie)}
+                          className={`flex gap-3 p-2 rounded-xl border transition-all relative group ${
+                            isHost 
+                              ? 'hover:bg-indigo-600/5 hover:border-indigo-500/20 cursor-pointer' 
+                              : 'border-white/[0.03] bg-white/[0.01]'
+                          } ${
+                            videoName === movie.title 
+                              ? 'bg-indigo-600/10 border-indigo-500/30' 
+                              : 'border-white/[0.04] bg-white/[0.01]'
+                          }`}
+                        >
+                          <img
+                            src={movie.thumbnail}
+                            alt={movie.title}
+                            className="w-16 h-10 object-cover rounded-lg border border-white/[0.06] select-none"
+                          />
+                          <div className="flex-grow flex flex-col text-left min-w-0">
+                            <span className="text-[11px] font-bold text-white truncate">{movie.title}</span>
+                            <span className="text-[9px] text-slate-500 font-semibold mt-0.5">{movie.genre}</span>
+                            <span className="text-[9px] text-indigo-400 font-bold mt-1">{movie.duration}</span>
+                          </div>
+
+                          {/* Actions */}
+                          {isHost && (
+                            <button
+                              onClick={(e) => handleDeleteCatalogMovie(movie.id, e)}
+                              className="absolute top-2 right-2 p-1 rounded bg-slate-900/80 border border-white/[0.06] opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-300 hover:bg-rose-950/20 transition-all cursor-pointer z-10"
+                              title="Delete Movie"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex-grow p-4 overflow-y-auto flex flex-col gap-3">
               {messages.length === 0 ? (
                 <div className="flex-grow flex flex-col items-center justify-center text-center p-6 text-slate-500">
                   <MessageSquare className="h-8 w-8 text-slate-700 mb-2" />
@@ -2465,6 +2688,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                 </button>
               </div>
             </form>
+            </>
+            )}
           </aside>
         )}
       </div>

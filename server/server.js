@@ -3,14 +3,41 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { Server as TrackerServer } from 'bittorrent-tracker';
 import { checkR2Status, generateUploadUrl, deleteR2Object } from './r2Service.js';
 
 dotenv.config();
 
 const app = express();
+
+// Secure Express apps by setting various HTTP headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabled to allow direct streaming from diverse external CDNs and bypass CORS restrictions
+}));
+
 app.use(cors());
 app.use(express.json());
+
+// General rate limiter to prevent API spamming
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 300, // Limit each IP to 300 requests per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' }
+});
+app.use('/api/', apiLimiter);
+
+// Stricter rate limiter specifically for file uploads to prevent resource exhaustion (R2/S3)
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 15, // Limit each IP to 15 upload URL requests per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Upload url generation quota exceeded. You can only request 15 uploads per hour.' }
+});
 
 // Render Keep-Alive Endpoint & Self-Pinging Routine
 app.get('/api/keep-alive', (req, res) => {
@@ -36,7 +63,7 @@ app.get('/api/r2-config', (req, res) => {
   res.json({ configured: checkR2Status() });
 });
 
-app.get('/api/r2-upload-url', async (req, res) => {
+app.get('/api/r2-upload-url', uploadLimiter, async (req, res) => {
   const { fileName, fileType } = req.query;
   if (!fileName || !fileType) {
     return res.status(400).json({ error: 'fileName and fileType query params are required.' });
@@ -102,6 +129,12 @@ server.on('upgrade', (request, socket, head) => {
 // In-memory room store
 const rooms = new Map();
 
+// Helper to sanitize inputs and prevent XSS scripting injections
+const sanitizeInput = (str) => {
+  if (typeof str !== 'string') return '';
+  return str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+};
+
 // Helper to broadcast and save chat history
 const sendChatMessage = (roomCode, msg) => {
   if (!rooms.has(roomCode)) return;
@@ -135,7 +168,7 @@ io.on('connection', (socket) => {
     }
 
     const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
-    userProfile = { name, status: 'Active', ip: clientIp, deviceId: 'host-device' };
+    userProfile = { name: sanitizeInput(name), status: 'Active', ip: clientIp, deviceId: 'host-device' };
     
     const roomData = {
       code: roomCode,
@@ -171,6 +204,7 @@ io.on('connection', (socket) => {
   // Handle room joining
   socket.on('join-room', ({ roomCode, name, deviceId }) => {
     const code = roomCode.trim().toUpperCase();
+    const sanitizedName = sanitizeInput(name);
     if (!rooms.has(code)) {
       socket.emit('join-error', 'Room not found.');
       return;
@@ -180,7 +214,7 @@ io.on('connection', (socket) => {
     const clientIp = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
 
     // Check if the user is banned by Name, IP, or Device ID
-    const isBanned = (room.bannedNames && room.bannedNames.includes(name)) ||
+    const isBanned = (room.bannedNames && room.bannedNames.includes(sanitizedName)) ||
                      (room.bannedIps && room.bannedIps.includes(clientIp)) ||
                      (room.bannedDeviceIds && room.bannedDeviceIds.includes(deviceId));
                      
@@ -188,7 +222,7 @@ io.on('connection', (socket) => {
       socket.emit('banned-error', {
         message: 'Access Denied',
         roomCode: code,
-        name
+        name: sanitizedName
       });
       return;
     }
@@ -197,13 +231,13 @@ io.on('connection', (socket) => {
     if (room.accessType === 'restricted' && socket.id !== room.hostId && (!room.approvedGuests || !room.approvedGuests.includes(deviceId))) {
       // Register in pending list
       if (!room.pendingGuests) room.pendingGuests = {};
-      room.pendingGuests[socket.id] = { name, socketId: socket.id, ip: clientIp, deviceId };
+      room.pendingGuests[socket.id] = { name: sanitizedName, socketId: socket.id, ip: clientIp, deviceId };
 
-      socket.emit('waiting-approval', { roomCode: code, name });
+      socket.emit('waiting-approval', { roomCode: code, name: sanitizedName });
 
       // Notify the active host
       io.to(room.hostId).emit('join-request-received', {
-        name,
+        name: sanitizedName,
         requesterSocketId: socket.id,
         roomCode: code
       });
@@ -212,17 +246,17 @@ io.on('connection', (socket) => {
 
     // Clean up duplicate names, offline users, or matching deviceIds to prevent double counting
     for (const id of Object.keys(room.users)) {
-      if (room.users[id].status === 'Offline' || room.users[id].name === name || room.users[id].deviceId === deviceId) {
+      if (room.users[id].status === 'Offline' || room.users[id].name === sanitizedName || room.users[id].deviceId === deviceId) {
         delete room.users[id];
       }
     }
 
-    userProfile = { name, status: 'Active', deviceId, ip: clientIp };
+    userProfile = { name: sanitizedName, status: 'Active', deviceId, ip: clientIp };
     room.users[socket.id] = userProfile;
     currentRoomCode = code;
 
     socket.join(code);
-    console.log(`User ${name} joined room: ${code} (IP: ${clientIp}, Device ID: ${deviceId})`);
+    console.log(`User ${sanitizedName} joined room: ${code} (IP: ${clientIp}, Device ID: ${deviceId})`);
     
     // Emit persistent chat history to the newly joined client
     socket.emit('chat-history', room.chatHistory || []);
@@ -248,6 +282,7 @@ io.on('connection', (socket) => {
   socket.on('share-torrent', ({ magnetURI, fileName, fileSize, youtubeUrl, cloudUrl }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
+    if (room.hostId !== socket.id) return;
 
     room.magnetURI = magnetURI;
     room.fileName = fileName;
@@ -264,6 +299,7 @@ io.on('connection', (socket) => {
   socket.on('update-subtitle', ({ cues, filename }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
+    if (room.hostId !== socket.id) return;
 
     room.subtitles = {
       cues,
@@ -280,6 +316,7 @@ io.on('connection', (socket) => {
   socket.on('sync-subtitle-offset', ({ offset }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
+    if (room.hostId !== socket.id) return;
 
     if (room.subtitles) {
       room.subtitles.offset = offset;
@@ -337,6 +374,7 @@ io.on('connection', (socket) => {
   socket.on('player-play', ({ currentTime }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
+    if (room.hostId !== socket.id) return;
 
     room.videoState.playing = true;
     room.videoState.currentTime = currentTime;
@@ -352,6 +390,7 @@ io.on('connection', (socket) => {
   socket.on('player-pause', ({ currentTime }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
+    if (room.hostId !== socket.id) return;
 
     room.videoState.playing = false;
     room.videoState.currentTime = currentTime;
@@ -367,6 +406,7 @@ io.on('connection', (socket) => {
   socket.on('player-seek', ({ currentTime }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
+    if (room.hostId !== socket.id) return;
 
     room.videoState.currentTime = currentTime;
     room.videoState.lastUpdated = Date.now();
@@ -543,7 +583,7 @@ io.on('connection', (socket) => {
     const message = {
       id: Math.random().toString(36).substr(2, 9),
       sender: userProfile.name,
-      text: messageText,
+      text: sanitizeInput(messageText),
       timestamp: Date.now(),
     };
 
