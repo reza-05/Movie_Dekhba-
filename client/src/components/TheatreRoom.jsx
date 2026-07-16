@@ -1854,7 +1854,37 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
             </div>
           )}
 
-          {!videoName && isHost ? (
+          {movieLoadingStatus && movieLoadingStatus.active ? (
+            /* Telegram-to-R2 Transfer Progress Overlay */
+            <div className="w-full max-w-xl glass-panel p-8 sm:p-10 rounded-2xl text-center flex flex-col items-center border border-slate-800 relative shadow-2xl animate-fade-in select-none">
+              <div className="absolute top-0 right-0 left-0 h-1 bg-gradient-to-r from-indigo-500 via-indigo-600 to-purple-600 animate-pulse"></div>
+              <div className="w-16 h-16 relative flex items-center justify-center mb-6">
+                <div className="absolute inset-0 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+                <Sparkles className="h-6 w-6 text-indigo-400 animate-pulse" />
+              </div>
+              <h3 className="text-xl font-bold text-white tracking-tight">Fetching Curated Movie</h3>
+              <p className="text-indigo-300 text-sm font-semibold mt-1">"{movieLoadingStatus.title}"</p>
+              
+              <div className="w-full bg-slate-900 border border-slate-800/80 h-2.5 rounded-full mt-6 overflow-hidden relative shadow-inner">
+                <div 
+                  className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(99,102,241,0.5)]" 
+                  style={{ width: `${movieLoadingStatus.percent}%` }}
+                />
+              </div>
+              
+              <p className="text-slate-400 text-xs mt-3.5 font-bold tracking-wide">
+                Transferring to Streaming Server: {movieLoadingStatus.percent}%
+              </p>
+              {movieLoadingStatus.totalBytes > 0 && (
+                <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-extrabold">
+                  {(movieLoadingStatus.loadedBytes / (1024 * 1024)).toFixed(1)} MB of {(movieLoadingStatus.totalBytes / (1024 * 1024)).toFixed(1)} MB
+                </p>
+              )}
+              <p className="text-[10px] text-amber-500/90 mt-4 leading-normal max-w-xs text-left mx-auto">
+                💡 Transferring from secure archive directly to R2 cloud storage. Egress bandwidth usage: 0%.
+              </p>
+            </div>
+          ) : !videoName && isHost ? (
             /* File Selection Card (Host Only) with Drag & Drop */
             <div 
               onDragEnter={handleDrag}
@@ -1978,36 +2008,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                       {activeCue.text}
                     </div>
                   );
-                })()}                {/* Telegram-to-R2 Transfer Progress Overlay */}
-                {movieLoadingStatus && movieLoadingStatus.active && (
-                  <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center select-none animate-fade-in">
-                    <div className="w-16 h-16 relative flex items-center justify-center mb-6">
-                      <div className="absolute inset-0 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
-                      <Sparkles className="h-6 w-6 text-indigo-400 animate-pulse" />
-                    </div>
-                    <h3 className="text-xl font-bold text-white tracking-tight">Fetching Curated Movie</h3>
-                    <p className="text-indigo-300 text-sm font-semibold mt-1">"{movieLoadingStatus.title}"</p>
-                    
-                    <div className="w-full max-w-sm bg-white/[0.04] border border-white/[0.06] rounded-full h-2.5 mt-6 overflow-hidden relative">
-                      <div 
-                        className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(99,102,241,0.5)]" 
-                        style={{ width: `${movieLoadingStatus.percent}%` }}
-                      />
-                    </div>
-                    
-                    <p className="text-slate-400 text-xs mt-3.5 font-bold tracking-wide">
-                      Transferring to Streaming Server: {movieLoadingStatus.percent}%
-                    </p>
-                    {movieLoadingStatus.totalBytes > 0 && (
-                      <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-extrabold">
-                        {(movieLoadingStatus.loadedBytes / (1024 * 1024)).toFixed(1)} MB of {(movieLoadingStatus.totalBytes / (1024 * 1024)).toFixed(1)} MB
-                      </p>
-                    )}
-                    <p className="text-[10px] text-amber-500/90 mt-4 leading-normal max-w-xs text-left mx-auto">
-                      💡 Transferring from secure archive directly to R2 cloud storage. Egress bandwidth usage: 0%.
-                    </p>
-                  </div>
-                )}
+                })()}
 
                 {youtubeUrl ? (
                   <div className="w-full h-full pointer-events-none">
