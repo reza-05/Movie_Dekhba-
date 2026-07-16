@@ -109,7 +109,8 @@ export async function pipeTelegramToR2(channelId, messageId, onProgress) {
     // 3. Download and Pipe chunks
     for await (const chunk of client.iterDownload({
       file: media,
-      chunkSize: 512 * 1024, // 512KB chunks
+      requestSize: 512 * 1024,
+      workers: 8,
     })) {
       accumulatedBuffer.push(chunk);
       accumulatedLength += chunk.length;
