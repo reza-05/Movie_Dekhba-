@@ -1,13 +1,13 @@
 [
   {
-    "id": "joker-2019",
-    "title": "Joker (2019)",
-    "genre": "Drama / Thriller",
-    "rating": "8.4",
-    "poster": "https://image.tmdb.org/t/p/w500/udDclsv61wP6j0trhqUIDz6EqII.jpg",
-    "description": "During the 1980s, a failed stand-up comedian is driven insane and turns to a life of crime and chaos in Gotham City while becoming an infamous psychopathic crime figure.",
-    "telegramChannelId": "-1002166453120",
-    "telegramMessageId": "481"
+    "id": "zero-day-2025",
+    "title": "Zero Day (2025)",
+    "genre": "Thriller / Drama",
+    "rating": "8.8",
+    "poster": "/posters/zero_day.jpg",
+    "description": "A political conspiracy thriller about a nuclear attack warning and a former US President who leads a secret commission to find the perpetrators.",
+    "telegramChannelId": "-1004329714585",
+    "telegramMessageId": "3"
   },
   {
     "id": "batman-2022",
