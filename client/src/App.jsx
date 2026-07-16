@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import TheatreRoom from './components/TheatreRoom';
-import { Film, User, Key, Sparkles, ArrowRight, Zap, Tv, FolderOpen, Lock, Menu, X, HelpCircle, Info, ChevronRight, Play, Settings } from 'lucide-react';
+import { Film, User, Key, Sparkles, ArrowRight, Zap, Tv, FolderOpen, Lock, Menu, X, HelpCircle, Info, ChevronRight, Play, Settings, Search } from 'lucide-react';
 
 // Error Boundary to catch render-time issues in TheatreRoom
 class ErrorBoundary extends React.Component {
@@ -88,6 +88,57 @@ function App() {
   const [roomAccess, setRoomAccess] = useState('public'); // 'public' or 'restricted'
   const [infoModalOpen, setInfoModalOpen] = useState(false);
   const [infoActiveTab, setInfoActiveTab] = useState('how-it-works'); // 'how-it-works', 'faq', 'about'
+  
+  const [activeView, setActiveView] = useState('landing'); // 'landing' or 'movies'
+  const [selectedMovie, setSelectedMovie] = useState(null);
+  const [showPromptModal, setShowPromptModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState('All');
+  
+  const [moviesCatalog, setMoviesCatalog] = useState([
+    {
+      id: "joker-2019",
+      title: "Joker (2019)",
+      genre: "Drama / Thriller",
+      rating: "8.4",
+      poster: "https://image.tmdb.org/t/p/w500/udDclsv61wP6j0trhqUIDz6EqII.jpg",
+      description: "During the 1980s, a failed stand-up comedian is driven insane and turns to a life of crime and chaos in Gotham City while becoming an infamous psychopathic crime figure."
+    },
+    {
+      id: "batman-2022",
+      title: "The Batman (2022)",
+      genre: "Action / Crime / Drama",
+      rating: "7.8",
+      poster: "https://image.tmdb.org/t/p/w500/74xTEgt7R361n5Q9Y6HG2hp8PUI.jpg",
+      description: "In his second year of fighting crime, Batman uncovers corruption in Gotham City that connects to his own family while facing a serial killer known as the Riddler."
+    },
+    {
+      id: "interstellar-2014",
+      title: "Interstellar (2014)",
+      genre: "Adventure / Drama / Sci-Fi",
+      rating: "8.7",
+      poster: "https://image.tmdb.org/t/p/w500/gEU2QvEzv5tZg2Jvhpja2P0tbDk.jpg",
+      description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival."
+    }
+  ]);
+
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
+        const res = await fetch(`${backendUrl}/api/movies-catalog`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data)) {
+            setMoviesCatalog(data);
+          }
+        }
+      } catch (err) {
+        console.log('Using default local fallback catalog:', err);
+      }
+    };
+    fetchCatalog();
+  }, []);
 
   const [deviceId] = useState(() => {
     let id = localStorage.getItem('movie_dekhba_device_id');
@@ -183,7 +234,11 @@ function App() {
           userName={userName.trim()}
           roomAccess={roomAccess}
           deviceId={deviceId}
-          onLeave={handleLeaveRoom}
+          onLeave={() => {
+            handleLeaveRoom();
+            setSelectedMovie(null);
+          }}
+          catalogMovie={selectedMovie}
         />
       </ErrorBoundary>
     );
@@ -289,6 +344,38 @@ function App() {
             Movie Dekhba
           </span>
         </div>
+        
+        <nav className="flex items-center gap-4 sm:gap-6 ml-6 mr-auto relative z-20 select-none">
+          <button 
+            type="button"
+            onClick={() => {
+              setActiveView('landing');
+              setError('');
+            }}
+            className={`text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all duration-200 cursor-pointer ${
+              activeView === 'landing' 
+                ? 'text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Home
+          </button>
+          <button 
+            type="button"
+            onClick={() => {
+              setActiveView('movies');
+              setError('');
+            }}
+            className={`text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all duration-200 cursor-pointer ${
+              activeView === 'movies' 
+                ? 'text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]' 
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Movies
+          </button>
+        </nav>
+        
         <button
           onClick={() => {
             setInfoActiveTab('how-it-works');
@@ -301,218 +388,377 @@ function App() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-grow flex items-center justify-center px-4 sm:px-8 py-6 sm:py-16 md:py-24 lg:py-32 relative z-10">
-        <div className="w-full max-w-6xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-8 lg:gap-16 xl:gap-20 items-center transform -translate-y-2 sm:-translate-y-4 md:-translate-y-8 lg:-translate-y-12">
-          
-          {/* Left Column: Clean Responsive Typography */}
-          <div className="lg:col-span-7 space-y-4 lg:space-y-6 text-center lg:text-left transform lg:-translate-y-4">
-            <div className="animate-slide-up [animation-delay:100ms] [animation-fill-mode:forwards]">
-              <h1 
-                className="font-extrabold text-white"
-                style={{
-                  fontSize: 'clamp(2.25rem, 6.2vw - 0.5rem, 5rem)',
-                  lineHeight: '1.16',
-                  letterSpacing: '-0.025em',
-                  wordSpacing: '0.09em'
-                }}
-              >
-                Watch movies{" "}<br className="hidden lg:block" />
-                together with{" "}<br className="hidden lg:block" />
-                <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(99,102,241,0.18)]">
-                  your friends
-                </span>
-              </h1>
-            </div>
+      <main className="flex-grow flex items-center justify-center px-4 sm:px-8 py-6 sm:py-12 md:py-16 lg:py-20 relative z-10">
+        {activeView === 'landing' ? (
+          <div className="w-full max-w-6xl px-4 sm:px-6 lg:px-8 grid lg:grid-cols-12 gap-8 lg:gap-16 xl:gap-20 items-center transform -translate-y-2 sm:-translate-y-4 md:-translate-y-8 lg:-translate-y-12">
             
-            <div className="animate-slide-up [animation-delay:250ms] [animation-fill-mode:forwards]">
-              <p 
-                className="text-slate-400/90 mx-auto lg:mx-0 font-medium"
-                style={{
-                  fontSize: 'clamp(0.775rem, 0.2vw + 0.75rem, 1rem)',
-                  lineHeight: '1.6',
-                  maxWidth: '34rem'
-                }}
-              >
-                Direct high-speed movie rooms for you and your friends. Upload files from your local storage and watch them instantly with no size limits or quality loss.
-              </p>
-            </div>
-
-            {/* Premium Feature Chips */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1.5 pt-3 sm:pt-4 animate-slide-up [animation-delay:400ms] [animation-fill-mode:forwards]">
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
-                <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
-                <span>Instant Sync</span>
-              </div>
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
-                <Tv className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
-                <span>HD Streaming</span>
-              </div>
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
-                <FolderOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
-                <span>Local Files</span>
-              </div>
-              <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
-                <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
-                <span>Private Rooms</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column: Interactive Tabbed Room Access Widget (Centered on Desktop Grid Column) */}
-          <div className="lg:col-span-5 w-full flex justify-center animate-scale-up [animation-delay:200ms] [animation-fill-mode:forwards]">
-            <div className="w-full max-w-[32rem] glass-panel px-6 py-10 sm:p-10 md:p-12 rounded-3xl border border-white/[0.06] bg-gradient-to-b from-[#0b0f19]/70 to-[#05070c]/85 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative transition-all duration-300 hover:scale-[1.005] hover:shadow-[0_20px_50px_rgba(99,102,241,0.05)]">
-              <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-indigo-500/20 via-indigo-500 to-violet-500/20 rounded-t-3xl shadow-[0_0_15px_rgba(99,102,241,0.4)]"></div>
-
-              {/* Step Tab Switcher (iOS/Apple Style Sliding Indicators) */}
-              <div className="flex bg-[#02040a]/65 p-1 rounded-2xl border border-white/[0.04] mb-8 relative z-0 overflow-hidden select-none">
-                <div 
-                  className="absolute top-1 bottom-1 left-1 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 shadow-md shadow-indigo-600/10 transition-all duration-300 ease-out z-10"
+            {/* Left Column: Clean Responsive Typography */}
+            <div className="lg:col-span-7 space-y-4 lg:space-y-6 text-center lg:text-left transform lg:-translate-y-4">
+              <div className="animate-slide-up [animation-delay:100ms] [animation-fill-mode:forwards]">
+                <h1 
+                  className="font-extrabold text-white"
                   style={{
-                    width: 'calc(50% - 4px)',
-                    transform: activeTab === 'host' ? 'translateX(0)' : 'translateX(100%)'
+                    fontSize: 'clamp(2.25rem, 6.2vw - 0.5rem, 5rem)',
+                    lineHeight: '1.16',
+                    letterSpacing: '-0.025em',
+                    wordSpacing: '0.09em'
                   }}
-                />
-                <button
-                  onClick={() => { setActiveTab('host'); setError(''); }}
-                  className={`flex-1 py-3.5 text-center text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 relative z-20 ${
-                    activeTab === 'host' ? 'text-white' : 'text-slate-400 hover:text-white'
-                  }`}
                 >
-                  Host Room
-                </button>
-                <button
-                  onClick={() => { setActiveTab('join'); setError(''); }}
-                  className={`flex-1 py-3.5 text-center text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 relative z-20 ${
-                    activeTab === 'join' ? 'text-white' : 'text-slate-400 hover:text-white'
-                  }`}
+                  Watch movies{" "}<br className="hidden lg:block" />
+                  together with{" "}<br className="hidden lg:block" />
+                  <span className="bg-gradient-to-r from-indigo-400 via-indigo-500 to-violet-500 bg-clip-text text-transparent drop-shadow-[0_0_15px_rgba(99,102,241,0.18)]">
+                    your friends
+                  </span>
+                </h1>
+              </div>
+              
+              <div className="animate-slide-up [animation-delay:250ms] [animation-fill-mode:forwards]">
+                <p 
+                  className="text-slate-400/90 mx-auto lg:mx-0 font-medium"
+                  style={{
+                    fontSize: 'clamp(0.775rem, 0.2vw + 0.75rem, 1rem)',
+                    lineHeight: '1.6',
+                    maxWidth: '34rem'
+                  }}
                 >
-                  Join Room
-                </button>
+                  Direct high-speed movie rooms for you and your friends. Upload files from your local storage and watch them instantly with no size limits or quality loss.
+                </p>
               </div>
 
-              {error && (
-                <div className="mb-6 p-4 text-xs bg-rose-950/20 border border-rose-500/20 text-rose-300 rounded-xl">
-                  {error}
+              {/* Premium Feature Chips */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-1.5 pt-3 sm:pt-4 animate-slide-up [animation-delay:400ms] [animation-fill-mode:forwards]">
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                  <Zap className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
+                  <span>Instant Sync</span>
                 </div>
-              )}
-
-              {/* Tab Content: Host Room Form */}
-              {activeTab === 'host' ? (
-                <form onSubmit={handleCreateRoom} className="space-y-6">
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
-                      Display Name
-                    </label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 transition-colors group-focus-within:text-indigo-400">
-                        <User className="h-5 w-5" />
-                      </div>
-                      <input
-                        type="text"
-                        required
-                        value={userName}
-                        onChange={(e) => setUserName(e.target.value)}
-                        className="w-full py-[1.125rem] pl-12 pr-4 rounded-2xl glass-input text-base font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] placeholder:text-slate-500 transition-all duration-300"
-                        placeholder="E.g., Alex"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
-                      Room Access Mode
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 bg-[#02040a]/65 p-1 rounded-2xl border border-white/[0.04]">
-                      <button
-                        type="button"
-                        onClick={() => setRoomAccess('public')}
-                        className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 select-none cursor-pointer ${
-                          roomAccess === 'public'
-                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-600/10'
-                            : 'text-slate-450 hover:text-slate-200'
-                        }`}
-                      >
-                        Instant Entry
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRoomAccess('restricted')}
-                        className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 select-none cursor-pointer ${
-                          roomAccess === 'restricted'
-                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-600/10'
-                            : 'text-slate-450 hover:text-slate-200'
-                        }`}
-                      >
-                        Host Approval
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full flex items-center justify-between py-[1.125rem] px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-2xl text-base font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/25 cursor-pointer group"
-                  >
-                    <span>Host a New Room</span>
-                    <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
-                  </button>
-                </form>
-              ) : (
-                /* Tab Content: Join Room Form */
-                <form onSubmit={handleJoinRoom} className="space-y-5">
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
-                      Display Name
-                    </label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 transition-colors group-focus-within:text-indigo-400">
-                        <User className="h-5 w-5" />
-                      </div>
-                      <input
-                        type="text"
-                        required
-                        value={userName}
-                        onChange={(e) => setUserName(e.target.value)}
-                        className="w-full py-[1.125rem] pl-12 pr-4 rounded-2xl glass-input text-base font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] placeholder:text-slate-500 transition-all duration-300"
-                        placeholder="E.g., Alex"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
-                      Room Code
-                    </label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-400/70 transition-colors group-focus-within:text-indigo-400">
-                        <Key className="h-5 w-5" />
-                      </div>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        required
-                        value={roomCodeInput}
-                        onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-                        className="w-full py-[1.125rem] pl-12 pr-4 bg-slate-950/50 border border-indigo-500/30 focus:bg-slate-950/60 focus:border-indigo-500 rounded-2xl text-base font-bold tracking-widest text-center uppercase placeholder:normal-case placeholder:font-medium placeholder:text-slate-500 placeholder:tracking-normal text-indigo-200 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] transition-all duration-300"
-                        placeholder="Enter 6-digit Code"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full flex items-center justify-between py-[1.125rem] px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-2xl text-base font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/25 cursor-pointer group"
-                  >
-                    <span>Join Room</span>
-                    <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
-                  </button>
-                </form>
-              )}
-
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                  <Tv className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
+                  <span>HD Streaming</span>
+                </div>
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                  <FolderOpen className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
+                  <span>Local Files</span>
+                </div>
+                <div className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] sm:text-xs font-bold text-slate-300 bg-white/[0.03] border border-white/[0.06] backdrop-blur-sm transition-all duration-300 hover:bg-white/[0.08] hover:border-indigo-500/30 hover:scale-[1.03] hover:text-white cursor-default select-none shadow-sm">
+                  <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-indigo-400" />
+                  <span>Private Rooms</span>
+                </div>
+              </div>
             </div>
-          </div>
 
-        </div>
+            {/* Right Column: Interactive Tabbed Room Access Widget (Centered on Desktop Grid Column) */}
+            <div className="lg:col-span-5 w-full flex justify-center animate-scale-up [animation-delay:200ms] [animation-fill-mode:forwards]">
+              <div className="w-full max-w-[32rem] glass-panel px-6 py-10 sm:p-10 md:p-12 rounded-3xl border border-white/[0.06] bg-gradient-to-b from-[#0b0f19]/70 to-[#05070c]/85 backdrop-blur-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative transition-all duration-300 hover:scale-[1.005] hover:shadow-[0_20px_50px_rgba(99,102,241,0.05)]">
+                <div className="absolute top-0 right-0 left-0 h-[2px] bg-gradient-to-r from-indigo-500/20 via-indigo-500 to-violet-500/20 rounded-t-3xl shadow-[0_0_15px_rgba(99,102,241,0.4)]"></div>
+
+                {/* Step Tab Switcher (iOS/Apple Style Sliding Indicators) */}
+                <div className="flex bg-[#02040a]/65 p-1 rounded-2xl border border-white/[0.04] mb-8 relative z-0 overflow-hidden select-none">
+                  <div 
+                    className="absolute top-1 bottom-1 left-1 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 shadow-md shadow-indigo-600/10 transition-all duration-300 ease-out z-10"
+                    style={{
+                      width: 'calc(50% - 4px)',
+                      transform: activeTab === 'host' ? 'translateX(0)' : 'translateX(100%)'
+                    }}
+                  />
+                  <button
+                    onClick={() => { setActiveTab('host'); setError(''); }}
+                    className={`flex-1 py-3.5 text-center text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 relative z-20 ${
+                      activeTab === 'host' ? 'text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Host Room
+                  </button>
+                  <button
+                    onClick={() => { setActiveTab('join'); setError(''); }}
+                    className={`flex-1 py-3.5 text-center text-xs sm:text-sm font-bold rounded-xl transition-all duration-300 relative z-20 ${
+                      activeTab === 'join' ? 'text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Join Room
+                  </button>
+                </div>
+
+                {error && (
+                  <div className="mb-6 p-4 text-xs bg-rose-950/20 border border-rose-500/20 text-rose-300 rounded-xl text-left">
+                    {error}
+                  </div>
+                )}
+
+                {/* Tab Content: Host Room Form */}
+                {activeTab === 'host' ? (
+                  <form onSubmit={handleCreateRoom} className="space-y-6">
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
+                        Display Name
+                      </label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 transition-colors group-focus-within:text-indigo-400">
+                          <User className="h-5 w-5" />
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={userName}
+                          onChange={(e) => setUserName(e.target.value)}
+                          className="w-full py-[1.125rem] pl-12 pr-4 rounded-2xl glass-input text-base font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] placeholder:text-slate-500 transition-all duration-300"
+                          placeholder="E.g., Alex"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
+                        Room Access Mode
+                      </label>
+                      <div className="grid grid-cols-2 gap-2 bg-[#02040a]/65 p-1 rounded-2xl border border-white/[0.04]">
+                        <button
+                          type="button"
+                          onClick={() => setRoomAccess('public')}
+                          className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 select-none cursor-pointer ${
+                            roomAccess === 'public'
+                              ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-600/10'
+                              : 'text-slate-455 hover:text-slate-200'
+                          }`}
+                        >
+                          Instant Entry
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRoomAccess('restricted')}
+                          className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 select-none cursor-pointer ${
+                            roomAccess === 'restricted'
+                              ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md shadow-indigo-600/10'
+                              : 'text-slate-455 hover:text-slate-200'
+                          }`}
+                        >
+                          Host Approval
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full flex items-center justify-between py-[1.125rem] px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-2xl text-base font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/25 cursor-pointer group"
+                    >
+                      <span>Host a New Room</span>
+                      <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+                    </button>
+                  </form>
+                ) : (
+                  /* Tab Content: Join Room Form */
+                  <form onSubmit={handleJoinRoom} className="space-y-5">
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
+                        Display Name
+                      </label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 transition-colors group-focus-within:text-indigo-400">
+                          <User className="h-5 w-5" />
+                        </div>
+                        <input
+                          type="text"
+                          required
+                          value={userName}
+                          onChange={(e) => setUserName(e.target.value)}
+                          className="w-full py-[1.125rem] pl-12 pr-4 rounded-2xl glass-input text-base font-semibold text-white tracking-wide border border-white/[0.06] bg-slate-950/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] placeholder:text-slate-500 transition-all duration-300"
+                          placeholder="E.g., Alex"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold uppercase text-slate-400/90 tracking-widest mb-2.5 text-left">
+                        Room Code
+                      </label>
+                      <div className="relative group">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-indigo-400/70 transition-colors group-focus-within:text-indigo-400">
+                          <Key className="h-5 w-5" />
+                        </div>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          required
+                          value={roomCodeInput}
+                          onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                          className="w-full py-[1.125rem] pl-12 pr-4 bg-slate-950/50 border border-indigo-500/30 focus:bg-slate-950/60 focus:border-indigo-500 rounded-2xl text-base font-bold tracking-widest text-center uppercase placeholder:normal-case placeholder:font-medium placeholder:text-slate-500 placeholder:tracking-normal text-indigo-200 focus:shadow-[0_0_15px_rgba(99,102,241,0.15)] transition-all duration-300"
+                          placeholder="Enter 6-digit Code"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full flex items-center justify-between py-[1.125rem] px-6 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 active:scale-[0.98] text-white rounded-2xl text-base font-semibold transition-all shadow-lg shadow-indigo-600/10 hover:shadow-indigo-600/25 cursor-pointer group"
+                    >
+                      <span>Join Room</span>
+                      <ArrowRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+                    </button>
+                  </form>
+                )}
+
+              </div>
+            </div>
+
+          </div>
+        ) : (
+          <div className="w-full max-w-6xl px-4 sm:px-6 lg:px-8 flex flex-col gap-8 text-left animate-fade-in select-none">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.04] pb-6">
+              <div>
+                <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">Curated Movies</h2>
+                <p className="text-xs text-slate-400 mt-1">Select a title to host an instant watch party with friends.</p>
+              </div>
+              
+              {/* Search Bar */}
+              <div className="relative w-full md:w-80 group">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <Search className="h-4 w-4" />
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search movie or genre..."
+                  className="w-full py-2.5 pl-10 pr-4 rounded-xl border border-white/[0.06] bg-slate-950/40 focus:border-indigo-500/60 focus:bg-slate-950/60 text-xs font-semibold text-white outline-none transition-all placeholder:text-slate-500"
+                />
+              </div>
+            </div>
+
+            {/* Genre Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
+              {['All', 'Action', 'Drama', 'Adventure', 'Sci-Fi', 'Thriller', 'Crime'].map(genre => (
+                <button
+                  key={genre}
+                  type="button"
+                  onClick={() => setSelectedGenre(genre)}
+                  className={`px-4 py-2 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer border ${
+                    selectedGenre === genre
+                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white border-transparent shadow-md shadow-indigo-600/10 scale-[1.02]'
+                      : 'text-slate-400 border-white/[0.04] bg-white/[0.01] hover:text-white hover:bg-white/[0.03]'
+                  }`}
+                >
+                  {genre}
+                </button>
+              ))}
+            </div>
+
+            {/* Movies Grid */}
+            {moviesCatalog.filter(movie => {
+              const matchesSearch = movie.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                    (movie.genre && movie.genre.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                                    (movie.description && movie.description.toLowerCase().includes(searchQuery.toLowerCase()));
+              const matchesGenre = selectedGenre === 'All' || (movie.genre && movie.genre.includes(selectedGenre));
+              return matchesSearch && matchesGenre;
+            }).length === 0 ? (
+              <div className="py-16 text-center text-slate-500">
+                <p className="text-sm font-semibold">No movies found matching your criteria.</p>
+                <p className="text-xs mt-1">Try refining your search or select another genre.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                {moviesCatalog.filter(movie => {
+                  const matchesSearch = movie.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                        (movie.genre && movie.genre.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                                        (movie.description && movie.description.toLowerCase().includes(searchQuery.toLowerCase()));
+                  const matchesGenre = selectedGenre === 'All' || (movie.genre && movie.genre.includes(selectedGenre));
+                  return matchesSearch && matchesGenre;
+                }).map(movie => (
+                  <div
+                    key={movie.id}
+                    onClick={() => {
+                      setSelectedMovie(movie);
+                      if (userName.trim()) {
+                        setActiveRoomCode('CREATE');
+                      } else {
+                        setShowPromptModal(true);
+                      }
+                    }}
+                    className="bg-[#0b0f19]/30 border border-white/[0.05] rounded-2xl overflow-hidden cursor-pointer group hover:border-indigo-500/30 transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between shadow-lg hover:shadow-indigo-500/5 relative"
+                  >
+                    {/* Poster Container */}
+                    <div className="w-full aspect-[2/3] relative bg-slate-950 overflow-hidden">
+                      <img
+                        src={movie.poster}
+                        alt={movie.title}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                      />
+                      
+                      {/* Visual Glassmorphic Hover Play Icon Overlay */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300 backdrop-blur-[1px]">
+                        <div className="h-12 w-12 rounded-full bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30 text-white transform scale-90 group-hover:scale-100 transition-all duration-300">
+                          <Play className="h-5 w-5 fill-white ml-0.5" />
+                        </div>
+                      </div>
+
+                      {/* Rating Badge */}
+                      {movie.rating && (
+                        <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-lg bg-black/75 border border-white/[0.06] text-[10px] font-extrabold text-amber-400 flex items-center gap-1 shadow-sm">
+                          ★ {movie.rating}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Text Container */}
+                    <div className="p-3 md:p-4 flex flex-col justify-between flex-grow">
+                      <div className="space-y-1">
+                        <h4 className="font-extrabold text-xs sm:text-sm text-slate-200 line-clamp-1 group-hover:text-white transition-colors">{movie.title}</h4>
+                        <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{movie.genre}</p>
+                      </div>
+                      {movie.description && (
+                        <p className="text-[10px] text-slate-400/90 leading-normal line-clamp-2 mt-2">{movie.description}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </main>
+
+      {/* Username prompt modal for catalog */}
+      {showPromptModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in select-none">
+          <div className="w-full max-w-md bg-gradient-to-b from-[#0f1422]/90 to-[#07090f]/95 border border-white/[0.06] rounded-3xl p-8 shadow-2xl relative animate-scale-up text-left">
+            <button 
+              type="button"
+              onClick={() => setShowPromptModal(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.04] text-slate-400 hover:text-white transition-all cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="font-extrabold text-lg text-white mb-2">Host Room & Watch</h3>
+            <p className="text-xs text-slate-400 mb-6 leading-relaxed">
+              You need to create a watch party room to stream <span className="text-indigo-400 font-bold">{selectedMovie?.title}</span> in sync with friends. Enter your name to host:
+            </p>
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (userName.trim()) {
+                  setShowPromptModal(false);
+                  setActiveRoomCode('CREATE');
+                }
+              }}
+              className="space-y-4"
+            >
+              <input
+                type="text"
+                required
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Your display name..."
+                className="w-full py-3 px-4 rounded-xl border border-white/[0.06] bg-slate-950/40 focus:border-indigo-500/60 focus:bg-slate-950/60 text-sm font-semibold text-white outline-none transition-all"
+              />
+              <button
+                type="submit"
+                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+              >
+                Start Watch Party
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Footer Info (Translucent Glass Panel) */}
       <footer className="py-4 border-t border-white/[0.04] bg-slate-950/35 backdrop-blur-md text-center text-[9px] sm:text-[10px] text-slate-500 font-semibold uppercase tracking-wider relative z-10">

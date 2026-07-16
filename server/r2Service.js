@@ -90,3 +90,5 @@ export const deleteR2Object = async (key) => {
   await s3Client.send(command);
   console.log(`[R2 Service] Automatically deleted expired R2 object: ${key}`);
 };
+
+export { s3Client };

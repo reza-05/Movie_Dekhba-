@@ -4,10 +4,10 @@ import {
   Play, Pause, Volume2, Users, Send, Video, 
   ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles,
   RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles, ChevronLeft, ChevronRight,
-  MoreVertical, ChevronUp, ChevronDown, Smile, Search, Upload, Key
+  MoreVertical, ChevronUp, ChevronDown, Smile, Search, Upload, Key, Film
 } from 'lucide-react';
 
-function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId, onLeave }) {
+function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId, onLeave, catalogMovie }) {
   const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5001';
 
   const [roomCode, setRoomCode] = useState(initialRoomCode === 'CREATE' ? '' : initialRoomCode);
@@ -56,6 +56,28 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const [unsupportedFile, setUnsupportedFile] = useState(null);
   const [showFormatWarning, setShowFormatWarning] = useState(false);
   const [activeSidebarTab, setActiveSidebarTab] = useState('chat');
+  const [movieLoadingStatus, setMovieLoadingStatus] = useState(null);
+  const [showCatalogOverlay, setShowCatalogOverlay] = useState(false);
+  const [moviesCatalog, setMoviesCatalog] = useState([]);
+  const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
+  const [catalogSelectedGenre, setCatalogSelectedGenre] = useState('All');
+
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      try {
+        const res = await fetch(`${backendUrl}/api/movies-catalog`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data)) {
+            setMoviesCatalog(data);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching catalog in room:', err);
+      }
+    };
+    fetchCatalog();
+  }, []);
   const [catalogList, setCatalogList] = useState(() => {
     const saved = localStorage.getItem('moviedekhba_catalog');
     if (saved) {
@@ -394,6 +416,35 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       setUsersList(users);
       setHostId(serverHostId);
       setIsHost(serverHostId === socket.current.id);
+
+      // If there's a preloaded catalog movie, trigger Telegram-to-R2 transfer
+      if (catalogMovie && catalogMovie.id) {
+        fetch(`${backendUrl}/api/load-movie`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ roomCode: code, movieId: catalogMovie.id })
+        }).catch(err => console.error('Error preloading movie:', err));
+      }
+    });
+
+    socket.current.on('movie-loading-start', ({ title }) => {
+      setMovieLoadingStatus({ active: true, title, percent: 0, loadedBytes: 0, totalBytes: 0 });
+    });
+
+    socket.current.on('movie-loading-progress', ({ title, percent, downloadedBytes, totalBytes }) => {
+      setMovieLoadingStatus({ active: true, title, percent, loadedBytes: downloadedBytes, totalBytes });
+    });
+
+    socket.current.on('movie-loaded', ({ videoSrc: url, title }) => {
+      setMovieLoadingStatus(null);
+      updateVideoSrc(url);
+      setVideoName(title);
+      setYoutubeUrl('');
+    });
+
+    socket.current.on('movie-loading-error', ({ error, title }) => {
+      setMovieLoadingStatus(null);
+      console.error(`Error loading movie: ${title}`, error);
     });
 
     socket.current.on('chat-history', (history) => {
@@ -1927,7 +1978,36 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                       {activeCue.text}
                     </div>
                   );
-                })()}
+                })()}                {/* Telegram-to-R2 Transfer Progress Overlay */}
+                {movieLoadingStatus && movieLoadingStatus.active && (
+                  <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center select-none animate-fade-in">
+                    <div className="w-16 h-16 relative flex items-center justify-center mb-6">
+                      <div className="absolute inset-0 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+                      <Sparkles className="h-6 w-6 text-indigo-400 animate-pulse" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white tracking-tight">Fetching Curated Movie</h3>
+                    <p className="text-indigo-300 text-sm font-semibold mt-1">"{movieLoadingStatus.title}"</p>
+                    
+                    <div className="w-full max-w-sm bg-white/[0.04] border border-white/[0.06] rounded-full h-2.5 mt-6 overflow-hidden relative">
+                      <div 
+                        className="bg-gradient-to-r from-indigo-500 to-violet-500 h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_12px_rgba(99,102,241,0.5)]" 
+                        style={{ width: `${movieLoadingStatus.percent}%` }}
+                      />
+                    </div>
+                    
+                    <p className="text-slate-400 text-xs mt-3.5 font-bold tracking-wide">
+                      Transferring to Streaming Server: {movieLoadingStatus.percent}%
+                    </p>
+                    {movieLoadingStatus.totalBytes > 0 && (
+                      <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider font-extrabold">
+                        {(movieLoadingStatus.loadedBytes / (1024 * 1024)).toFixed(1)} MB of {(movieLoadingStatus.totalBytes / (1024 * 1024)).toFixed(1)} MB
+                      </p>
+                    )}
+                    <p className="text-[10px] text-amber-500/90 mt-4 leading-normal max-w-xs text-left mx-auto">
+                      💡 Transferring from secure archive directly to R2 cloud storage. Egress bandwidth usage: 0%.
+                    </p>
+                  </div>
+                )}
 
                 {youtubeUrl ? (
                   <div className="w-full h-full pointer-events-none">
@@ -2237,16 +2317,29 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                 )}
               </div>
 
-              <div className="flex items-center justify-between px-2 text-xs">
-                <span className="text-slate-400 truncate max-w-xs md:max-w-md">Playing: <strong className="text-slate-200">{videoName}</strong></span>
-                {isHost && (
-                  <button 
-                    onClick={handleHostReset}
-                    className="text-indigo-400 hover:text-indigo-300 font-semibold transition-colors bg-transparent border-none cursor-pointer p-0"
-                  >
-                    {youtubeUrl ? "Change Video" : "Change File"}
-                  </button>
-                )}
+              <div className="flex items-center justify-between px-2 text-xs select-none">
+                <span className="text-slate-400 truncate max-w-[12rem] sm:max-w-xs md:max-w-md">Playing: <strong className="text-slate-200">{videoName || 'None'}</strong></span>
+                <div className="flex items-center gap-3">
+                  {isHost && (
+                    <button 
+                      type="button"
+                      onClick={() => setShowCatalogOverlay(true)}
+                      className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors bg-transparent border-none cursor-pointer p-0 flex items-center gap-1"
+                    >
+                      <Film className="h-3.5 w-3.5" />
+                      Browse Movies
+                    </button>
+                  )}
+                  {isHost && (
+                    <button 
+                      type="button"
+                      onClick={handleHostReset}
+                      className="text-slate-450 hover:text-white font-bold transition-colors bg-transparent border-none cursor-pointer p-0"
+                    >
+                      {youtubeUrl ? "Change Video" : "Change File"}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -2946,6 +3039,131 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Cinematic Movies Catalog Overlay */}
+      {showCatalogOverlay && (
+        <div className="fixed inset-0 z-[180] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in select-none">
+          <div className="w-full max-w-5xl h-[85vh] max-h-[48rem] bg-gradient-to-b from-[#0f1422]/90 to-[#07090f]/95 border border-white/[0.06] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-scale-up relative p-6 text-left">
+            
+            {/* Close Button */}
+            <button 
+              type="button"
+              onClick={() => setShowCatalogOverlay(false)}
+              className="absolute top-4 right-4 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.04] text-slate-400 hover:text-white transition-all cursor-pointer z-50"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {/* Header / Search Controls */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.04] pb-6 mb-6 pr-10">
+              <div>
+                <h3 className="font-black text-xl text-white tracking-tight flex items-center gap-2">
+                  <Film className="h-5 w-5 text-indigo-400 animate-pulse" />
+                  Browse Curated Catalog
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wider font-extrabold">Host Controls Only</p>
+              </div>
+
+              {/* Search input */}
+              <div className="relative w-full md:w-80 group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <Search className="h-4 w-4" />
+                </div>
+                <input
+                  type="text"
+                  value={catalogSearchQuery}
+                  onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                  placeholder="Search movie or genre..."
+                  className="w-full py-2 px-9 rounded-xl border border-white/[0.06] bg-slate-950/40 focus:border-indigo-500/60 focus:bg-slate-950/60 text-xs font-semibold text-white outline-none transition-all placeholder:text-slate-500"
+                />
+              </div>
+            </div>
+
+            {/* Genre Filters */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-4 scrollbar-none shrink-0">
+              {['All', 'Action', 'Drama', 'Adventure', 'Sci-Fi', 'Thriller', 'Crime'].map(genre => (
+                <button
+                  key={genre}
+                  type="button"
+                  onClick={() => setCatalogSelectedGenre(genre)}
+                  className={`px-3 py-1.5 rounded-full text-[10px] font-bold transition-all duration-200 cursor-pointer border ${
+                    catalogSelectedGenre === genre
+                      ? 'bg-indigo-600 text-white border-transparent shadow-md shadow-indigo-600/10'
+                      : 'text-slate-400 border-white/[0.04] bg-white/[0.01] hover:text-white hover:bg-white/[0.03]'
+                  }`}
+                >
+                  {genre}
+                </button>
+              ))}
+            </div>
+
+            {/* Movie grid container */}
+            <div className="flex-grow overflow-y-auto pr-1">
+              {moviesCatalog.filter(movie => {
+                const matchesSearch = movie.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || 
+                                      (movie.genre && movie.genre.toLowerCase().includes(catalogSearchQuery.toLowerCase())) ||
+                                      (movie.description && movie.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
+                const matchesGenre = catalogSelectedGenre === 'All' || (movie.genre && movie.genre.includes(catalogSelectedGenre));
+                return matchesSearch && matchesGenre;
+              }).length === 0 ? (
+                <div className="py-16 text-center text-slate-500">
+                  <p className="text-sm font-semibold">No movies found in this category.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {moviesCatalog.filter(movie => {
+                    const matchesSearch = movie.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || 
+                                          (movie.genre && movie.genre.toLowerCase().includes(catalogSearchQuery.toLowerCase())) ||
+                                          (movie.description && movie.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
+                    const matchesGenre = catalogSelectedGenre === 'All' || (movie.genre && movie.genre.includes(catalogSelectedGenre));
+                    return matchesSearch && matchesGenre;
+                  }).map(movie => (
+                    <div
+                      key={movie.id}
+                      onClick={() => {
+                        if (!isHost) return;
+                        setShowCatalogOverlay(false);
+                        fetch(`${backendUrl}/api/load-movie`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ roomCode, movieId: movie.id })
+                        }).catch(err => console.error('Error changing movie:', err));
+                      }}
+                      className="bg-[#0b0f19]/30 border border-white/[0.05] rounded-xl overflow-hidden cursor-pointer group hover:border-indigo-500/30 transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between shadow-lg"
+                    >
+                      <div className="w-full aspect-[2/3] relative bg-slate-950 overflow-hidden">
+                        <img
+                          src={movie.poster}
+                          alt={movie.title}
+                          loading="lazy"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
+                          <div className="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+                            <Play className="h-4 w-4 fill-white ml-0.5" />
+                          </div>
+                        </div>
+                        {movie.rating && (
+                          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/75 text-[9px] font-extrabold text-amber-400">
+                            ★ {movie.rating}
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-2.5 flex flex-col justify-between flex-grow">
+                        <div>
+                          <h4 className="font-extrabold text-[11px] text-slate-200 line-clamp-1 group-hover:text-white transition-colors">{movie.title}</h4>
+                          <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">{movie.genre}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       )}

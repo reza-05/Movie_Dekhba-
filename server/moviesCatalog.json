@@ -1,0 +1,32 @@
+[
+  {
+    "id": "joker-2019",
+    "title": "Joker (2019)",
+    "genre": "Drama / Thriller",
+    "rating": "8.4",
+    "poster": "https://image.tmdb.org/t/p/w500/udDclsv61wP6j0trhqUIDz6EqII.jpg",
+    "description": "During the 1980s, a failed stand-up comedian is driven insane and turns to a life of crime and chaos in Gotham City while becoming an infamous psychopathic crime figure.",
+    "telegramChannelId": "-1002166453120",
+    "telegramMessageId": "481"
+  },
+  {
+    "id": "batman-2022",
+    "title": "The Batman (2022)",
+    "genre": "Action / Crime / Drama",
+    "rating": "7.8",
+    "poster": "https://image.tmdb.org/t/p/w500/74xTEgt7R361n5Q9Y6HG2hp8PUI.jpg",
+    "description": "In his second year of fighting crime, Batman uncovers corruption in Gotham City that connects to his own family while facing a serial killer known as the Riddler.",
+    "telegramChannelId": "-1002166453120",
+    "telegramMessageId": "482"
+  },
+  {
+    "id": "interstellar-2014",
+    "title": "Interstellar (2014)",
+    "genre": "Adventure / Drama / Sci-Fi",
+    "rating": "8.7",
+    "poster": "https://image.tmdb.org/t/p/w500/gEU2QvEzv5tZg2Jvhpja2P0tbDk.jpg",
+    "description": "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
+    "telegramChannelId": "-1002166453120",
+    "telegramMessageId": "483"
+  }
+]

@@ -7,6 +7,13 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { Server as TrackerServer } from 'bittorrent-tracker';
 import { checkR2Status, generateUploadUrl, deleteR2Object } from './r2Service.js';
+import { pipeTelegramToR2 } from './telegramService.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -86,6 +93,85 @@ app.get('/api/r2-upload-url', uploadLimiter, async (req, res) => {
   } catch (error) {
     console.error('Error generating presigned URL:', error);
     res.status(500).json({ error: 'Failed to generate presigned upload URL.' });
+  }
+});
+
+// Curated Movies Catalog Endpoint
+app.get('/api/movies-catalog', (req, res) => {
+  try {
+    const catalogPath = path.join(__dirname, 'moviesCatalog.json');
+    const data = fs.readFileSync(catalogPath, 'utf8');
+    res.json(JSON.parse(data));
+  } catch (error) {
+    console.error('Error reading movies catalog:', error);
+    res.status(500).json({ error: 'Failed to read movies catalog.' });
+  }
+});
+
+// Load Movie Endpoint (Initiate Telegram to R2 Piping)
+app.post('/api/load-movie', async (req, res) => {
+  const { roomCode, movieId } = req.body;
+  if (!roomCode || !movieId) {
+    return res.status(400).json({ error: 'roomCode and movieId are required.' });
+  }
+
+  try {
+    const catalogPath = path.join(__dirname, 'moviesCatalog.json');
+    const catalogData = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+    const movie = catalogData.find(m => m.id === movieId);
+    
+    if (!movie) {
+      return res.status(404).json({ error: 'Movie not found in catalog.' });
+    }
+
+    // Inform all room members that movie load has started
+    io.to(roomCode).emit('movie-loading-start', { title: movie.title });
+
+    // Respond immediately to host so the browser request doesn't hang
+    res.json({ message: 'Movie download and piping initiated successfully.', title: movie.title });
+
+    // Execute piping job asynchronously
+    console.log(`[Piping Job] Starting piping for room ${roomCode}, movie: ${movie.title}`);
+    
+    const { publicUrl, key } = await pipeTelegramToR2(
+      movie.telegramChannelId,
+      movie.telegramMessageId,
+      (downloaded, total) => {
+        const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0;
+        // Emit real-time progress update to the room
+        io.to(roomCode).emit('movie-loading-progress', {
+          percent,
+          downloadedBytes: downloaded,
+          totalBytes: total,
+          title: movie.title
+        });
+      }
+    );
+
+    // Auto cleanup after 4 hours
+    setTimeout(async () => {
+      try {
+        console.log(`[R2 Service] Auto-cleanup timer triggered for key: ${key}`);
+        await deleteR2Object(key);
+      } catch (err) {
+        console.error(`[R2 Service] Auto-cleanup failed for key ${key}:`, err.message);
+      }
+    }, 4 * 60 * 60 * 1000); // 4 hours
+
+    // Broadcast stream completion to all room members
+    io.to(roomCode).emit('movie-loaded', {
+      videoSrc: publicUrl,
+      title: movie.title
+    });
+
+    console.log(`[Piping Job] Completed. Stream URL: ${publicUrl}`);
+
+  } catch (error) {
+    console.error('[Load Movie Error]:', error);
+    io.to(roomCode).emit('movie-loading-error', {
+      error: 'Failed to transfer movie from Telegram storage to streaming bucket.',
+      title: movieId
+    });
   }
 });
 
