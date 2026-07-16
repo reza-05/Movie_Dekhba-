@@ -4,7 +4,7 @@ import {
   Play, Pause, Volume2, Users, Send, Video, 
   ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles,
   RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles, ChevronLeft, ChevronRight,
-  MoreVertical, ChevronUp, ChevronDown, Smile, Search, Upload
+  MoreVertical, ChevronUp, ChevronDown, Smile, Search, Upload, Key
 } from 'lucide-react';
 
 function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId, onLeave }) {
@@ -82,6 +82,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   });
   const [newMovieTitle, setNewMovieTitle] = useState('');
   const [newMovieLink, setNewMovieLink] = useState('');
+  const [googleApiKey, setGoogleApiKey] = useState(() => localStorage.getItem('moviedekhba_google_api_key') || '');
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false);
 
   // Subtitle States
   const [subtitleCues, setSubtitleCues] = useState([]);
@@ -1350,7 +1352,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       }
     }
 
-    const apiKey = import.meta.env.VITE_GOOGLE_API_KEY || '';
+    const apiKey = googleApiKey || import.meta.env.VITE_GOOGLE_API_KEY || '';
     if (apiKey) {
       return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
     }
@@ -2412,6 +2414,62 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
             {activeSidebarTab === 'catalog' ? (
               <div className="flex-grow flex flex-col h-full overflow-hidden select-none">
+                {/* Google Drive API Key Configuration */}
+                <div className="p-3 border-b border-white/[0.04] bg-white/[0.01]">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] text-slate-500 uppercase tracking-wider font-extrabold flex items-center gap-1">
+                      <Key className="h-3 w-3 text-indigo-400" />
+                      Google Drive API Key
+                    </span>
+                    <button
+                      onClick={() => setShowApiKeyInput(!showApiKeyInput)}
+                      className="text-[9.5px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+                    >
+                      {googleApiKey ? (showApiKeyInput ? 'Hide Settings' : 'Configure') : 'Configure Required'}
+                    </button>
+                  </div>
+                  {(!googleApiKey && !showApiKeyInput) && (
+                    <p className="text-[10px] text-amber-400/95 font-semibold mt-1 leading-normal text-left">
+                      ⚠️ Drive API Key missing. Streaming files will fail on localhost due to browser cookie protections.
+                    </p>
+                  )}
+                  {showApiKeyInput && (
+                    <div className="mt-2 flex flex-col gap-1.5 text-left">
+                      <div className="flex gap-2">
+                        <input
+                          type="password"
+                          value={googleApiKey}
+                          onChange={(e) => {
+                            setGoogleApiKey(e.target.value);
+                            localStorage.setItem('moviedekhba_google_api_key', e.target.value);
+                          }}
+                          placeholder="Paste Google Cloud API Key..."
+                          className="flex-grow py-1.5 px-2.5 rounded-lg text-xs text-slate-200 border border-white/[0.06] bg-slate-900/40 focus:border-indigo-500/60 transition-all outline-none"
+                        />
+                        <button
+                          onClick={() => {
+                            setShowApiKeyInput(false);
+                            setActiveToast({
+                              title: 'API Key Saved',
+                              message: 'Google Drive streaming key successfully updated.'
+                            });
+                          }}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center"
+                        >
+                          Save
+                        </button>
+                      </div>
+                      <a 
+                        href="https://console.cloud.google.com/apis/credentials" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-[9px] text-slate-500 hover:text-slate-400 underline tracking-wide"
+                      >
+                        How to get a free Google Cloud API Key?
+                      </a>
+                    </div>
+                  )}
+                </div>
                 {/* Add Movie Form (Host Only) */}
                 {isHost && (
                   <form onSubmit={handleAddCatalogMovie} className="p-3 border-b border-white/[0.04] flex flex-col gap-2">
