@@ -48,7 +48,7 @@ export async function initTelegram() {
  * @param {string|number} messageId Telegram Message ID containing the document
  * @param {function} onProgress Progress callback yielding (downloadedBytes, totalBytes)
  */
-export async function pipeTelegramToR2(channelId, messageId, onProgress) {
+export async function pipeTelegramToR2(channelId, messageId, movieId, onProgress) {
   if (!isInitialized) {
     await initTelegram();
   }
@@ -84,9 +84,7 @@ export async function pipeTelegramToR2(channelId, messageId, onProgress) {
   }
 
   // 2. Initialize S3 Multipart Upload on R2
-  const uniqueId = Math.random().toString(36).substring(2, 11);
-  const sanitizedName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-  const key = `${uniqueId}-${sanitizedName}`;
+  const key = `movie-${movieId}.mp4`;
 
   const createMultipartCommand = new CreateMultipartUploadCommand({
     Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,

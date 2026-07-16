@@ -61,6 +61,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const [moviesCatalog, setMoviesCatalog] = useState([]);
   const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
   const [catalogSelectedGenre, setCatalogSelectedGenre] = useState('All');
+  const [catalogSelectedCategory, setCatalogSelectedCategory] = useState('movies');
 
   useEffect(() => {
     const fetchCatalog = async () => {
@@ -3059,27 +3060,56 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
             </button>
 
             {/* Header / Search Controls */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/[0.04] pb-6 mb-6 pr-10">
-              <div>
-                <h3 className="font-black text-xl text-white tracking-tight flex items-center gap-2">
-                  <Film className="h-5 w-5 text-indigo-400 animate-pulse" />
-                  Browse Curated Catalog
-                </h3>
-                <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wider font-extrabold">Host Controls Only</p>
+            <div className="flex flex-col gap-4 border-b border-white/[0.04] pb-5 mb-5 pr-10">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-black text-xl text-white tracking-tight flex items-center gap-2">
+                    <Film className="h-5 w-5 text-indigo-400 animate-pulse" />
+                    Browse Curated Catalog
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-1 uppercase tracking-wider font-extrabold">Host Controls Only</p>
+                </div>
               </div>
 
-              {/* Search input */}
-              <div className="relative w-full md:w-80 group">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
-                  <Search className="h-4 w-4" />
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-1">
+                {/* Category navigation pills inside room overlay */}
+                <div className="flex items-center gap-2 bg-slate-950/40 p-1 rounded-xl border border-white/[0.06] backdrop-blur-md self-start shrink-0">
+                  {[
+                    { id: 'movies', label: '🎬 Movies' },
+                    { id: 'anime', label: '🌸 Anime' },
+                    { id: 'series', label: '📺 Series' }
+                  ].map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => {
+                        setCatalogSelectedCategory(cat.id);
+                        setCatalogSelectedGenre('All');
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all duration-200 cursor-pointer ${
+                        catalogSelectedCategory === cat.id
+                          ? 'bg-indigo-600 text-white shadow-md'
+                          : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
                 </div>
-                <input
-                  type="text"
-                  value={catalogSearchQuery}
-                  onChange={(e) => setCatalogSearchQuery(e.target.value)}
-                  placeholder="Search movie or genre..."
-                  className="w-full py-2 px-9 rounded-xl border border-white/[0.06] bg-slate-950/40 focus:border-indigo-500/60 focus:bg-slate-950/60 text-xs font-semibold text-white outline-none transition-all placeholder:text-slate-500"
-                />
+
+                {/* Search input */}
+                <div className="relative w-full md:w-80 group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                    <Search className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={catalogSearchQuery}
+                    onChange={(e) => setCatalogSearchQuery(e.target.value)}
+                    placeholder="Search movie, anime, or series..."
+                    className="w-full py-2 px-9 rounded-xl border border-white/[0.06] bg-slate-950/40 focus:border-indigo-500/60 focus:bg-slate-950/60 text-xs font-semibold text-white outline-none transition-all placeholder:text-slate-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -3104,23 +3134,25 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
             {/* Movie grid container */}
             <div className="flex-grow overflow-y-auto pr-1">
               {moviesCatalog.filter(movie => {
+                const matchesCategory = movie.category === catalogSelectedCategory || (!movie.category && catalogSelectedCategory === 'movies');
                 const matchesSearch = movie.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || 
                                       (movie.genre && movie.genre.toLowerCase().includes(catalogSearchQuery.toLowerCase())) ||
                                       (movie.description && movie.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
                 const matchesGenre = catalogSelectedGenre === 'All' || (movie.genre && movie.genre.includes(catalogSelectedGenre));
-                return matchesSearch && matchesGenre;
+                return matchesCategory && matchesSearch && matchesGenre;
               }).length === 0 ? (
                 <div className="py-16 text-center text-slate-500">
-                  <p className="text-sm font-semibold">No movies found in this category.</p>
+                  <p className="text-sm font-semibold">No items found matching your criteria.</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {moviesCatalog.filter(movie => {
+                    const matchesCategory = movie.category === catalogSelectedCategory || (!movie.category && catalogSelectedCategory === 'movies');
                     const matchesSearch = movie.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || 
                                           (movie.genre && movie.genre.toLowerCase().includes(catalogSearchQuery.toLowerCase())) ||
                                           (movie.description && movie.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
                     const matchesGenre = catalogSelectedGenre === 'All' || (movie.genre && movie.genre.includes(catalogSelectedGenre));
-                    return matchesSearch && matchesGenre;
+                    return matchesCategory && matchesSearch && matchesGenre;
                   }).map(movie => (
                     <div
                       key={movie.id}

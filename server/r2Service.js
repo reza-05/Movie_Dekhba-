@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import dotenv from 'dotenv';
 
@@ -89,6 +89,26 @@ export const deleteR2Object = async (key) => {
 
   await s3Client.send(command);
   console.log(`[R2 Service] Automatically deleted expired R2 object: ${key}`);
+};
+
+/**
+ * Check if an object exists in R2 bucket by its key
+ * @param {string} key Unique object key in R2
+ */
+export const checkR2ObjectExists = async (key) => {
+  if (!checkR2Status() || !s3Client) {
+    return false;
+  }
+  try {
+    const command = new HeadObjectCommand({
+      Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
+      Key: key,
+    });
+    await s3Client.send(command);
+    return true;
+  } catch (error) {
+    return false;
+  }
 };
 
 export { s3Client };

@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { Server as TrackerServer } from 'bittorrent-tracker';
-import { checkR2Status, generateUploadUrl, deleteR2Object } from './r2Service.js';
+import { checkR2Status, generateUploadUrl, deleteR2Object, checkR2ObjectExists } from './r2Service.js';
 import { pipeTelegramToR2 } from './telegramService.js';
 import fs from 'fs';
 import path from 'path';
@@ -108,6 +108,130 @@ app.get('/api/movies-catalog', (req, res) => {
   }
 });
 
+// Sync Telegram Catalog Endpoint
+app.post('/api/sync-telegram', async (req, res) => {
+  try {
+    const { initTelegram } = await import('./telegramService.js');
+    const client = await initTelegram();
+    if (!client) {
+      return res.status(500).json({ error: 'Telegram client not initialized.' });
+    }
+
+    const channelId = '-1004329714585';
+    console.log(`[Sync Catalog] Fetching recent messages from Telegram channel ${channelId}...`);
+
+    // Fetch last 100 messages
+    const messages = await client.getMessages(channelId, { limit: 100 });
+    if (!messages || messages.length === 0) {
+      return res.json({ message: 'No messages found in the channel.', count: 0 });
+    }
+
+    const catalogPath = path.join(__dirname, 'moviesCatalog.json');
+    let catalog = [];
+    try {
+      catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
+    } catch (e) {
+      catalog = [];
+    }
+
+    // Default existing catalog items without category to 'movies'
+    catalog = catalog.map(item => ({
+      ...item,
+      category: item.category || 'movies'
+    }));
+
+    let addedCount = 0;
+    
+    for (const msg of messages) {
+      // Ensure the message contains a document media (the video file)
+      if (!msg.media || !msg.media.document) continue;
+
+      const text = msg.message || '';
+      const lowercaseText = text.toLowerCase();
+      
+      // We only sync messages that are explicitly tagged with our hashtags
+      let category = '';
+      if (lowercaseText.includes('#movie')) {
+        category = 'movies';
+      } else if (lowercaseText.includes('#anime')) {
+        category = 'anime';
+      } else if (lowercaseText.includes('#series')) {
+        category = 'series';
+      }
+
+      if (!category) continue; // Skip messages without our tags
+
+      const messageIdStr = String(msg.id);
+      
+      // Check if this Telegram message is already synced in the catalog
+      const exists = catalog.some(item => item.telegramChannelId === channelId && item.telegramMessageId === messageIdStr);
+      if (exists) continue;
+
+      // Parse metadata from caption lines
+      const lines = text.split('\n');
+      let title = '';
+      let genre = '';
+      let rating = '8.0';
+      let poster = '';
+      let description = '';
+
+      for (const line of lines) {
+        const lowerLine = line.toLowerCase().trim();
+        if (lowerLine.startsWith('title:')) {
+          title = line.substring(6).trim();
+        } else if (lowerLine.startsWith('genre:')) {
+          genre = line.substring(6).trim();
+        } else if (lowerLine.startsWith('rating:')) {
+          rating = line.substring(7).trim();
+        } else if (lowerLine.startsWith('poster:')) {
+          poster = line.substring(7).trim();
+        } else if (lowerLine.startsWith('description:')) {
+          description = line.substring(12).trim();
+        }
+      }
+
+      // Fallback title from filename
+      if (!title) {
+        const docAttr = msg.media.document.attributes.find(attr => attr.className === 'DocumentAttributeFilename');
+        title = docAttr ? docAttr.fileName.replace(/\.[^/.]+$/, "") : `Video ${msg.id}`;
+      }
+
+      if (!poster) {
+        poster = '/posters/zero_day.jpg'; // default nice fallback poster
+      }
+
+      const id = `tg-${msg.id}`;
+
+      catalog.push({
+        id,
+        title,
+        genre: genre || 'General',
+        rating,
+        poster,
+        description: description || 'No description provided.',
+        telegramChannelId: channelId,
+        telegramMessageId: messageIdStr,
+        category
+      });
+      
+      addedCount++;
+    }
+
+    if (addedCount > 0) {
+      fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2), 'utf8');
+      console.log(`[Sync Catalog] Successfully added ${addedCount} new items from Telegram channel!`);
+    } else {
+      console.log('[Sync Catalog] Catalog is already up-to-date.');
+    }
+
+    res.json({ message: `Successfully synced. Added ${addedCount} new items.`, addedCount, catalog });
+
+  } catch (error) {
+    console.error('[Sync Catalog Error]:', error);
+    res.status(500).json({ error: 'Failed to sync catalog from Telegram.' });
+  }
+});
+
 // Load Movie Endpoint (Initiate Telegram to R2 Piping)
 app.post('/api/load-movie', async (req, res) => {
   const { roomCode, movieId } = req.body;
@@ -131,11 +255,33 @@ app.post('/api/load-movie', async (req, res) => {
     res.json({ message: 'Movie download and piping initiated successfully.', title: movie.title });
 
     // Execute piping job asynchronously
+    const key = `movie-${movieId}.mp4`;
+    const cachedExists = await checkR2ObjectExists(key);
+
+    if (cachedExists) {
+      console.log(`[Piping Job] Cached object found in R2: ${key}. Skipping download and using cache.`);
+      let publicUrl = '';
+      if (process.env.CLOUDFLARE_R2_PUBLIC_URL) {
+        const baseUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL.replace(/\/$/, '');
+        publicUrl = `${baseUrl}/${key}`;
+      } else {
+        publicUrl = `https://${process.env.CLOUDFLARE_R2_BUCKET_NAME}.${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.dev/${key}`;
+      }
+
+      // Broadcast stream completion directly to the room
+      io.to(roomCode).emit('movie-loaded', {
+        videoSrc: publicUrl,
+        title: movie.title
+      });
+      return;
+    }
+
     console.log(`[Piping Job] Starting piping for room ${roomCode}, movie: ${movie.title}`);
     
-    const { publicUrl, key } = await pipeTelegramToR2(
+    const { publicUrl, key: uploadedKey } = await pipeTelegramToR2(
       movie.telegramChannelId,
       movie.telegramMessageId,
+      movieId,
       (downloaded, total) => {
         const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0;
         // Emit real-time progress update to the room
@@ -151,10 +297,10 @@ app.post('/api/load-movie', async (req, res) => {
     // Auto cleanup after 4 hours
     setTimeout(async () => {
       try {
-        console.log(`[R2 Service] Auto-cleanup timer triggered for key: ${key}`);
-        await deleteR2Object(key);
+        console.log(`[R2 Service] Auto-cleanup timer triggered for key: ${uploadedKey}`);
+        await deleteR2Object(uploadedKey);
       } catch (err) {
-        console.error(`[R2 Service] Auto-cleanup failed for key ${key}:`, err.message);
+        console.error(`[R2 Service] Auto-cleanup failed for key ${uploadedKey}:`, err.message);
       }
     }, 4 * 60 * 60 * 1000); // 4 hours
 
