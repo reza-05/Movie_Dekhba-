@@ -460,7 +460,6 @@ io.on('connection', (socket) => {
   socket.on('player-play', ({ currentTime }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
-    if (room.hostId !== socket.id) return;
 
     room.videoState.playing = true;
     room.videoState.currentTime = currentTime;
@@ -476,7 +475,6 @@ io.on('connection', (socket) => {
   socket.on('player-pause', ({ currentTime }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
-    if (room.hostId !== socket.id) return;
 
     room.videoState.playing = false;
     room.videoState.currentTime = currentTime;
@@ -492,7 +490,6 @@ io.on('connection', (socket) => {
   socket.on('player-seek', ({ currentTime }) => {
     if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
     const room = rooms.get(currentRoomCode);
-    if (room.hostId !== socket.id) return;
 
     room.videoState.currentTime = currentTime;
     room.videoState.lastUpdated = Date.now();
