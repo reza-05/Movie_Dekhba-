@@ -4,7 +4,8 @@ import {
   Play, Pause, Volume2, Users, Send, Video, 
   ArrowLeft, Copy, Check, MessageSquare, Monitor, ShieldAlert, X, Download, Sparkles,
   RotateCcw, RotateCw, Maximize2, Minimize2, Subtitles, ChevronLeft, ChevronRight,
-  MoreVertical, ChevronUp, ChevronDown, Smile, Search, Upload, Key, Film
+  MoreVertical, ChevronUp, ChevronDown, Smile, Search, Upload, Key, Film,
+  Mic, MicOff, Headphones, VolumeX, Volume1, Radio, Sliders
 } from 'lucide-react';
 
 function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId, onLeave, catalogMovie }) {
@@ -360,6 +361,20 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
+
+  // Voice Mode State & References
+  const [isVoiceConnected, setIsVoiceConnected] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isDeafened, setIsDeafened] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceUsersState, setVoiceUsersState] = useState({});
+  const [userVolumes, setUserVolumes] = useState({});
+
+  const localAudioStream = useRef(null);
+  const peersRef = useRef({});
+  const audioElementsRef = useRef({});
+  const audioContextRef = useRef(null);
+  const audioAnalyserRef = useRef(null);
   
   // File Transfer References
   const fileRef = useRef(null);
@@ -884,6 +899,332 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       return () => clearTimeout(timer);
     }
   }, [chatOpen, activeSidebarTab]);
+
+  // ==========================================
+  // WebRTC Voice Chat Engine & Signal Handling
+  // ==========================================
+  const iceServers = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+  };
+
+  const createPeerConnection = (targetSocketId, isInitiator) => {
+    if (peersRef.current[targetSocketId]) return peersRef.current[targetSocketId];
+
+    const pc = new RTCPeerConnection(iceServers);
+    peersRef.current[targetSocketId] = pc;
+
+    if (localAudioStream.current) {
+      localAudioStream.current.getAudioTracks().forEach(track => {
+        pc.addTrack(track, localAudioStream.current);
+      });
+    }
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.current?.emit('voice-signal', {
+          targetSocketId,
+          signalData: { type: 'candidate', candidate: event.candidate }
+        });
+      }
+    };
+
+    pc.ontrack = (event) => {
+      let audioEl = audioElementsRef.current[targetSocketId];
+      if (!audioEl) {
+        audioEl = document.createElement('audio');
+        audioEl.autoplay = true;
+        const currentVol = userVolumes[targetSocketId] !== undefined ? userVolumes[targetSocketId] : 1.0;
+        audioEl.volume = Math.min(Math.max(currentVol, 0), 1.0);
+        audioElementsRef.current[targetSocketId] = audioEl;
+      }
+      audioEl.srcObject = event.streams[0];
+      if (isDeafened) {
+        audioEl.muted = true;
+      }
+    };
+
+    if (isInitiator) {
+      pc.createOffer()
+        .then(offer => pc.setLocalDescription(offer))
+        .then(() => {
+          socket.current?.emit('voice-signal', {
+            targetSocketId,
+            signalData: { type: 'offer', offer: pc.localDescription }
+          });
+        })
+        .catch(err => console.error('[Voice] Error creating offer:', err));
+    }
+
+    return pc;
+  };
+
+  const setupAudioAnalyzer = (stream) => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const ctx = new AudioCtx();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+
+      audioContextRef.current = ctx;
+      audioAnalyserRef.current = analyser;
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      let speakingTimer = null;
+
+      const checkVolume = () => {
+        if (!analyser || !localAudioStream.current) return;
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / dataArray.length;
+        const speakingNow = average > 25 && !isMuted;
+
+        if (speakingNow) {
+          setIsSpeaking(true);
+          socket.current?.emit('voice-state-update', {
+            isMuted,
+            isDeafened,
+            isSpeaking: true
+          });
+          if (speakingTimer) clearTimeout(speakingTimer);
+          speakingTimer = setTimeout(() => {
+            setIsSpeaking(false);
+            socket.current?.emit('voice-state-update', {
+              isMuted,
+              isDeafened,
+              isSpeaking: false
+            });
+          }, 400);
+        }
+
+        requestAnimationFrame(checkVolume);
+      };
+      checkVolume();
+    } catch (e) {
+      console.warn('[Voice] AudioAnalyser setup error:', e);
+    }
+  };
+
+  const stopLocalVoice = () => {
+    if (localAudioStream.current) {
+      localAudioStream.current.getTracks().forEach(t => t.stop());
+      localAudioStream.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    Object.keys(peersRef.current).forEach(sid => {
+      if (peersRef.current[sid]) peersRef.current[sid].close();
+    });
+    peersRef.current = {};
+    Object.keys(audioElementsRef.current).forEach(sid => {
+      if (audioElementsRef.current[sid]) {
+        audioElementsRef.current[sid].pause();
+        audioElementsRef.current[sid].remove();
+      }
+    });
+    audioElementsRef.current = {};
+    setIsVoiceConnected(false);
+    setIsMuted(false);
+    setIsDeafened(false);
+    setIsSpeaking(false);
+    if (socket.current) {
+      socket.current.emit('voice-state-update', null);
+    }
+  };
+
+  const toggleVoiceConnect = async () => {
+    if (isVoiceConnected) {
+      stopLocalVoice();
+      setActiveToast({
+        title: 'Voice Disconnected',
+        message: 'You have left voice chat.'
+      });
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            sampleRate: 48000
+          }
+        });
+
+        localAudioStream.current = stream;
+        setIsVoiceConnected(true);
+        setIsMuted(false);
+        setIsDeafened(false);
+
+        setupAudioAnalyzer(stream);
+
+        socket.current?.emit('voice-state-update', {
+          isMuted: false,
+          isDeafened: false,
+          isSpeaking: false
+        });
+
+        Object.keys(usersList).forEach(targetSocketId => {
+          if (targetSocketId !== socket.current?.id && usersList[targetSocketId]?.status !== 'Offline') {
+            createPeerConnection(targetSocketId, true);
+          }
+        });
+
+        setActiveToast({
+          title: 'Voice Connected',
+          message: 'Real-time Voice Mode active. Speak with your friends!'
+        });
+      } catch (err) {
+        console.error('[Voice] Permission Error:', err);
+        setActiveToast({
+          title: 'Microphone Error',
+          message: 'Unable to access microphone. Check browser permissions.'
+        });
+      }
+    }
+  };
+
+  const toggleSelfMute = () => {
+    if (!isVoiceConnected) return;
+    const nextMuted = !isMuted;
+    if (localAudioStream.current) {
+      localAudioStream.current.getAudioTracks().forEach(t => (t.enabled = !nextMuted));
+    }
+    setIsMuted(nextMuted);
+    socket.current?.emit('voice-state-update', {
+      isMuted: nextMuted,
+      isDeafened,
+      isSpeaking: false
+    });
+  };
+
+  const toggleSelfDeafen = () => {
+    if (!isVoiceConnected) return;
+    const nextDeafened = !isDeafened;
+    setIsDeafened(nextDeafened);
+    Object.values(audioElementsRef.current).forEach(audioEl => {
+      if (audioEl) audioEl.muted = nextDeafened;
+    });
+    socket.current?.emit('voice-state-update', {
+      isMuted,
+      isDeafened: nextDeafened,
+      isSpeaking
+    });
+  };
+
+  const handleHostMuteAll = () => {
+    if (!isHost) return;
+    socket.current?.emit('voice-host-mute-all');
+    setActiveToast({
+      title: 'Muted All Viewers',
+      message: 'You have muted all participant microphones.'
+    });
+  };
+
+  const handleUserVolumeChange = (socketId, volVal) => {
+    setUserVolumes(prev => ({ ...prev, [socketId]: volVal }));
+    if (audioElementsRef.current[socketId]) {
+      audioElementsRef.current[socketId].volume = Math.min(Math.max(volVal, 0), 1.0);
+    }
+  };
+
+  useEffect(() => {
+    if (!socket.current) return;
+
+    const handleVoiceSignal = async ({ senderSocketId, signalData }) => {
+      if (!isVoiceConnected) return;
+
+      let pc = peersRef.current[senderSocketId];
+
+      if (signalData.type === 'offer') {
+        if (!pc) pc = createPeerConnection(senderSocketId, false);
+        await pc.setRemoteDescription(new RTCSessionDescription(signalData.offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.current.emit('voice-signal', {
+          targetSocketId: senderSocketId,
+          signalData: { type: 'answer', answer }
+        });
+      } else if (signalData.type === 'answer') {
+        if (pc) {
+          await pc.setRemoteDescription(new RTCSessionDescription(signalData.answer));
+        }
+      } else if (signalData.type === 'candidate') {
+        if (pc && signalData.candidate) {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(signalData.candidate));
+          } catch (e) {
+            console.error('[Voice] Error adding ICE candidate:', e);
+          }
+        }
+      }
+    };
+
+    const handleVoiceStateUpdate = ({ socketId, voiceState }) => {
+      setVoiceUsersState(prev => ({
+        ...prev,
+        [socketId]: voiceState
+      }));
+    };
+
+    const handleVoiceUserLeft = ({ socketId }) => {
+      if (peersRef.current[socketId]) {
+        peersRef.current[socketId].close();
+        delete peersRef.current[socketId];
+      }
+      if (audioElementsRef.current[socketId]) {
+        audioElementsRef.current[socketId].pause();
+        audioElementsRef.current[socketId].remove();
+        delete audioElementsRef.current[socketId];
+      }
+      setVoiceUsersState(prev => {
+        const next = { ...prev };
+        delete next[socketId];
+        return next;
+      });
+    };
+
+    const handleVoiceForceMute = () => {
+      if (isVoiceConnected && !isHost) {
+        if (localAudioStream.current) {
+          localAudioStream.current.getAudioTracks().forEach(t => (t.enabled = false));
+        }
+        setIsMuted(true);
+        socket.current.emit('voice-state-update', {
+          isMuted: true,
+          isDeafened,
+          isSpeaking: false
+        });
+        setActiveToast({
+          title: 'Muted by Host',
+          message: 'The host has muted all participants.'
+        });
+      }
+    };
+
+    socket.current.on('voice-signal', handleVoiceSignal);
+    socket.current.on('voice-state-update', handleVoiceStateUpdate);
+    socket.current.on('voice-user-left', handleVoiceUserLeft);
+    socket.current.on('voice-force-mute', handleVoiceForceMute);
+
+    return () => {
+      if (socket.current) {
+        socket.current.off('voice-signal', handleVoiceSignal);
+        socket.current.off('voice-state-update', handleVoiceStateUpdate);
+        socket.current.off('voice-user-left', handleVoiceUserLeft);
+        socket.current.off('voice-force-mute', handleVoiceForceMute);
+      }
+    };
+  }, [isVoiceConnected, isDeafened, isHost, usersList]);
 
   // YouTube URL extraction helper
   const extractYouTubeId = (url) => {
@@ -1857,7 +2198,67 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
         </div>
 
         {/* Toolbar Info */}
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-end flex-wrap">
+          {/* Voice Mode Controls */}
+          <div className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-800 p-1 rounded-xl">
+            <button
+              type="button"
+              onClick={toggleVoiceConnect}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                isVoiceConnected
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : 'bg-white/[0.03] text-slate-400 hover:text-white hover:bg-white/[0.08]'
+              }`}
+              title={isVoiceConnected ? "Disconnect Voice Mode" : "Join Real-time Voice Mode"}
+            >
+              <Radio className={`h-3.5 w-3.5 ${isVoiceConnected ? 'text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
+              <span className="hidden sm:inline">{isVoiceConnected ? 'Voice Connected' : 'Join Voice'}</span>
+            </button>
+
+            {isVoiceConnected && (
+              <>
+                <button
+                  type="button"
+                  onClick={toggleSelfMute}
+                  className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                    isMuted
+                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                      : isSpeaking
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 animate-pulse'
+                      : 'bg-slate-800/60 text-slate-300 hover:text-white'
+                  }`}
+                  title={isMuted ? "Unmute Microphone" : "Mute Microphone"}
+                >
+                  {isMuted ? <MicOff className="h-4 w-4 text-rose-400" /> : <Mic className="h-4 w-4 text-emerald-400" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={toggleSelfDeafen}
+                  className={`p-1.5 rounded-lg text-xs transition-all cursor-pointer ${
+                    isDeafened
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : 'bg-slate-800/60 text-slate-300 hover:text-white'
+                  }`}
+                  title={isDeafened ? "Undeafen Audio" : "Deafen Audio (Mute incoming voices)"}
+                >
+                  {isDeafened ? <VolumeX className="h-4 w-4 text-amber-400" /> : <Headphones className="h-4 w-4 text-indigo-400" />}
+                </button>
+
+                {isHost && (
+                  <button
+                    type="button"
+                    onClick={handleHostMuteAll}
+                    className="p-1.5 rounded-lg text-xs bg-rose-950/40 border border-rose-500/20 text-rose-300 hover:bg-rose-900/60 transition-all cursor-pointer"
+                    title="Host: Mute All Viewers"
+                  >
+                    <VolumeX className="h-4 w-4 text-rose-400" />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
           <button
             type="button"
             onClick={() => {
@@ -2433,6 +2834,11 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                   const isUserOffline = uProfile.status === 'Offline';
                   const isCurrentUser = uProfile.name === userName;
                   const userIdx = sortedUsersList.findIndex(([sId]) => sId === sid);
+
+                  const uVoice = isCurrentUser ? { isMuted, isDeafened, isSpeaking } : (voiceUsersState[sid] || {});
+                  const isUserSpeaking = uVoice.isSpeaking;
+                  const isUserMuted = uVoice.isMuted;
+                  const isUserDeafened = uVoice.isDeafened;
                   
                   return (
                     <div 
@@ -2446,27 +2852,50 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="relative">
+                        <div className={`relative rounded-full transition-all ${
+                          isUserSpeaking ? 'ring-2 ring-emerald-500 animate-speaking-pulse shadow-[0_0_12px_rgba(16,185,129,0.6)]' : ''
+                        }`}>
                           {getUserAvatarSVG(uProfile.name, userIdx)}
                           <div className={`absolute -bottom-1 -right-1 h-3 w-3 rounded-full border-2 border-[#02040a] ${
                             isUserAway ? 'bg-amber-500' : isUserOffline ? 'bg-slate-600' : 'bg-emerald-500'
                           }`} />
                         </div>
                       <div>
-                        <div className="font-semibold text-sm text-slate-200 flex items-center flex-wrap">
+                        <div className="font-semibold text-sm text-slate-200 flex items-center flex-wrap gap-1">
                           <span>{uProfile.name}</span>
-                          {isCurrentUser && <span className="text-slate-500 ml-1">(You)</span>}
+                          {isCurrentUser && <span className="text-slate-500 ml-0.5">(You)</span>}
                           {sid === hostId && (
-                            <span className="text-[9px] uppercase font-extrabold tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded ml-1.5">
+                            <span className="text-[9px] uppercase font-extrabold tracking-widest text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded ml-1">
                               Host
                             </span>
                           )}
+                          {isUserMuted && <MicOff className="h-3 w-3 text-rose-400" title="Muted" />}
+                          {isUserDeafened && <VolumeX className="h-3 w-3 text-amber-400" title="Deafened" />}
+                          {isUserSpeaking && <Mic className="h-3 w-3 text-emerald-400 animate-pulse" title="Speaking" />}
                         </div>
                         <p className="text-xs text-slate-500">Status: {uProfile.status}</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {!isCurrentUser && !isUserOffline && (
+                        <div className="flex items-center gap-1 bg-slate-950/80 px-2 py-1 rounded-lg border border-white/[0.06]" title={`Adjust ${uProfile.name}'s volume`}>
+                          <Volume1 className="h-3 w-3 text-indigo-400 flex-shrink-0" />
+                          <input
+                            type="range"
+                            min="0"
+                            max="1"
+                            step="0.05"
+                            value={userVolumes[sid] !== undefined ? userVolumes[sid] : 1.0}
+                            onChange={(e) => handleUserVolumeChange(sid, parseFloat(e.target.value))}
+                            className="w-12 h-1 accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer flex-shrink-0"
+                          />
+                          <span className="text-[8px] font-bold text-slate-400 w-6 text-right flex-shrink-0">
+                            {Math.round((userVolumes[sid] !== undefined ? userVolumes[sid] : 1.0) * 100)}%
+                          </span>
+                        </div>
+                      )}
+
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
                         isUserAway 
                           ? 'bg-amber-500/10 text-amber-400' 

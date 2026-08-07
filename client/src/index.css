@@ -213,3 +213,13 @@ body {
 .animate-text-flicker {
   animation: textFlicker 1.8s infinite;
 }
+
+@keyframes speakingPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  50% { box-shadow: 0 0 14px 4px rgba(34, 197, 94, 0.9); }
+}
+
+.animate-speaking-pulse {
+  animation: speakingPulse 1.2s infinite;
+  border-color: #10b981 !important;
+}

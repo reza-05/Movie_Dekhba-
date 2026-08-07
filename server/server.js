@@ -593,8 +593,39 @@ io.on('connection', (socket) => {
     });
   });
 
+  // WebRTC Voice Signaling Handlers
+  socket.on('voice-signal', ({ targetSocketId, signalData }) => {
+    io.to(targetSocketId).emit('voice-signal', {
+      senderSocketId: socket.id,
+      signalData
+    });
+  });
+
+  socket.on('voice-state-update', (voiceState) => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
+    const room = rooms.get(currentRoomCode);
+    if (room.users[socket.id]) {
+      room.users[socket.id].voiceState = voiceState;
+    }
+    socket.to(currentRoomCode).emit('voice-state-update', {
+      socketId: socket.id,
+      voiceState
+    });
+  });
+
+  socket.on('voice-host-mute-all', () => {
+    if (!currentRoomCode || !rooms.has(currentRoomCode)) return;
+    const room = rooms.get(currentRoomCode);
+    if (room.hostId === socket.id) {
+      socket.to(currentRoomCode).emit('voice-force-mute');
+    }
+  });
+
   // Handle disconnect
   socket.on('disconnect', () => {
+    if (currentRoomCode) {
+      socket.to(currentRoomCode).emit('voice-user-left', { socketId: socket.id });
+    }
     console.log(`User disconnected: ${socket.id}`);
     if (currentRoomCode && rooms.has(currentRoomCode)) {
       const room = rooms.get(currentRoomCode);
