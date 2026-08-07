@@ -1073,6 +1073,11 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true,
+            googEchoCancellation: true,
+            googAutoGainControl: true,
+            googNoiseSuppression: true,
+            googHighpassFilter: true,
+            suppressLocalAudioPlayback: true,
             channelCount: 1,
             sampleRate: 48000
           }
