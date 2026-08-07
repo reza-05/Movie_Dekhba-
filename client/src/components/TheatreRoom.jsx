@@ -910,6 +910,20 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     ]
   };
 
+  // Helper to optimize SDP for crystal-clear Opus audio quality & packet-loss resilience
+  const optimizeOpusSdp = (sdp) => {
+    if (!sdp) return sdp;
+    return sdp.replace(
+      /a=fmtp:(\d+) (.*)/g,
+      (match, payload, params) => {
+        if (params.includes('opus')) {
+          return `a=fmtp:${payload} ${params};maxaveragebitrate=128000;useinbandfec=1;stereo=1;sprop-stereo=1;cbr=1`;
+        }
+        return match;
+      }
+    );
+  };
+
   const createPeerConnection = (targetSocketId, isInitiator) => {
     if (peersRef.current[targetSocketId]) return peersRef.current[targetSocketId];
 
@@ -948,7 +962,11 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
     if (isInitiator) {
       pc.createOffer()
-        .then(offer => pc.setLocalDescription(offer))
+        .then(offer => {
+          const modifiedSdp = optimizeOpusSdp(offer.sdp);
+          const modifiedOffer = new RTCSessionDescription({ type: offer.type, sdp: modifiedSdp });
+          return pc.setLocalDescription(modifiedOffer);
+        })
         .then(() => {
           socket.current?.emit('voice-signal', {
             targetSocketId,
@@ -1149,10 +1167,12 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
         if (!pc) pc = createPeerConnection(senderSocketId, false);
         await pc.setRemoteDescription(new RTCSessionDescription(signalData.offer));
         const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
+        const modifiedAnswerSdp = optimizeOpusSdp(answer.sdp);
+        const modifiedAnswer = new RTCSessionDescription({ type: answer.type, sdp: modifiedAnswerSdp });
+        await pc.setLocalDescription(modifiedAnswer);
         socket.current.emit('voice-signal', {
           targetSocketId: senderSocketId,
-          signalData: { type: 'answer', answer }
+          signalData: { type: 'answer', answer: pc.localDescription }
         });
       } else if (signalData.type === 'answer') {
         if (pc) {
