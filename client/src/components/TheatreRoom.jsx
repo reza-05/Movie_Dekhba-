@@ -375,6 +375,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const audioElementsRef = useRef({});
   const audioContextRef = useRef(null);
   const audioAnalyserRef = useRef(null);
+  const remoteGainNodesRef = useRef({});
   
   // File Transfer References
   const fileRef = useRef(null);
@@ -910,18 +911,63 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     ]
   };
 
-  // Helper to optimize SDP for crystal-clear Opus audio quality & packet-loss resilience
+  // Helper to optimize SDP for ultra-low latency (10ms ptime) & Opus packet-loss resilience
   const optimizeOpusSdp = (sdp) => {
     if (!sdp) return sdp;
-    return sdp.replace(
+    let modified = sdp.replace(
       /a=fmtp:(\d+) (.*)/g,
       (match, payload, params) => {
         if (params.includes('opus')) {
-          return `a=fmtp:${payload} ${params};maxaveragebitrate=128000;useinbandfec=1;stereo=1;sprop-stereo=1;cbr=1`;
+          return `a=fmtp:${payload} ${params};maxaveragebitrate=128000;useinbandfec=1;stereo=1;sprop-stereo=1;ptime=10;maxptime=20;minptime=10`;
         }
         return match;
       }
     );
+    if (!modified.includes('a=ptime:10')) {
+      modified = modified.replace('a=fmtp:', 'a=ptime:10\r\na=fmtp:');
+    }
+    return modified;
+  };
+
+  const applyRemoteAudioStream = (targetSocketId, stream) => {
+    let audioEl = audioElementsRef.current[targetSocketId];
+    if (!audioEl) {
+      audioEl = document.createElement('audio');
+      audioEl.autoplay = true;
+      audioElementsRef.current[targetSocketId] = audioEl;
+    }
+
+    if (stream) {
+      audioEl.srcObject = stream;
+    }
+
+    const userVolSetting = userVolumes[targetSocketId] !== undefined ? userVolumes[targetSocketId] : 1.5;
+    audioEl.volume = Math.min(Math.max(userVolSetting, 0), 1.0);
+
+    try {
+      if (!remoteGainNodesRef.current[targetSocketId] && stream && (window.AudioContext || window.webkitAudioContext)) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioCtx({ latencyHint: 'interactive' });
+        const source = ctx.createMediaStreamSource(stream);
+        const gainNode = ctx.createGain();
+        gainNode.gain.value = userVolSetting;
+        source.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        remoteGainNodesRef.current[targetSocketId] = { ctx, gainNode };
+        audioEl.muted = true;
+      } else if (remoteGainNodesRef.current[targetSocketId]) {
+        remoteGainNodesRef.current[targetSocketId].gainNode.gain.value = isDeafened ? 0 : userVolSetting;
+      }
+    } catch (e) {
+      console.warn('[Voice] GainNode setup fallback:', e);
+    }
+
+    if (isDeafened) {
+      audioEl.muted = true;
+      if (remoteGainNodesRef.current[targetSocketId]) {
+        remoteGainNodesRef.current[targetSocketId].gainNode.gain.value = 0;
+      }
+    }
   };
 
   const createPeerConnection = (targetSocketId, isInitiator) => {
@@ -946,18 +992,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     };
 
     pc.ontrack = (event) => {
-      let audioEl = audioElementsRef.current[targetSocketId];
-      if (!audioEl) {
-        audioEl = document.createElement('audio');
-        audioEl.autoplay = true;
-        const currentVol = userVolumes[targetSocketId] !== undefined ? userVolumes[targetSocketId] : 1.0;
-        audioEl.volume = Math.min(Math.max(currentVol, 0), 1.0);
-        audioElementsRef.current[targetSocketId] = audioEl;
-      }
-      audioEl.srcObject = event.streams[0];
-      if (isDeafened) {
-        audioEl.muted = true;
-      }
+      applyRemoteAudioStream(targetSocketId, event.streams[0]);
     };
 
     if (isInitiator) {
@@ -1043,6 +1078,12 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       if (peersRef.current[sid]) peersRef.current[sid].close();
     });
     peersRef.current = {};
+    Object.keys(remoteGainNodesRef.current).forEach(sid => {
+      if (remoteGainNodesRef.current[sid]?.ctx) {
+        remoteGainNodesRef.current[sid].ctx.close().catch(() => {});
+      }
+    });
+    remoteGainNodesRef.current = {};
     Object.keys(audioElementsRef.current).forEach(sid => {
       if (audioElementsRef.current[sid]) {
         audioElementsRef.current[sid].pause();
@@ -1134,8 +1175,13 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     if (!isVoiceConnected) return;
     const nextDeafened = !isDeafened;
     setIsDeafened(nextDeafened);
-    Object.values(audioElementsRef.current).forEach(audioEl => {
+    Object.keys(audioElementsRef.current).forEach(sid => {
+      const audioEl = audioElementsRef.current[sid];
       if (audioEl) audioEl.muted = nextDeafened;
+      if (remoteGainNodesRef.current[sid]) {
+        const userVolSetting = userVolumes[sid] !== undefined ? userVolumes[sid] : 1.5;
+        remoteGainNodesRef.current[sid].gainNode.gain.value = nextDeafened ? 0 : userVolSetting;
+      }
     });
     socket.current?.emit('voice-state-update', {
       isMuted,
@@ -1155,9 +1201,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
   const handleUserVolumeChange = (socketId, volVal) => {
     setUserVolumes(prev => ({ ...prev, [socketId]: volVal }));
-    if (audioElementsRef.current[socketId]) {
-      audioElementsRef.current[socketId].volume = Math.min(Math.max(volVal, 0), 1.0);
-    }
+    applyRemoteAudioStream(socketId, null);
   };
 
   useEffect(() => {
@@ -1205,6 +1249,12 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
       if (peersRef.current[socketId]) {
         peersRef.current[socketId].close();
         delete peersRef.current[socketId];
+      }
+      if (remoteGainNodesRef.current[socketId]) {
+        if (remoteGainNodesRef.current[socketId].ctx) {
+          remoteGainNodesRef.current[socketId].ctx.close().catch(() => {});
+        }
+        delete remoteGainNodesRef.current[socketId];
       }
       if (audioElementsRef.current[socketId]) {
         audioElementsRef.current[socketId].pause();
@@ -2909,14 +2959,14 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                           <input
                             type="range"
                             min="0"
-                            max="1"
+                            max="2.5"
                             step="0.05"
-                            value={userVolumes[sid] !== undefined ? userVolumes[sid] : 1.0}
+                            value={userVolumes[sid] !== undefined ? userVolumes[sid] : 1.5}
                             onChange={(e) => handleUserVolumeChange(sid, parseFloat(e.target.value))}
                             className="w-12 h-1 accent-indigo-500 bg-slate-800 rounded-lg cursor-pointer flex-shrink-0"
                           />
-                          <span className="text-[8px] font-bold text-slate-400 w-6 text-right flex-shrink-0">
-                            {Math.round((userVolumes[sid] !== undefined ? userVolumes[sid] : 1.0) * 100)}%
+                          <span className="text-[8px] font-bold text-indigo-300 w-7 text-right flex-shrink-0">
+                            {Math.round((userVolumes[sid] !== undefined ? userVolumes[sid] : 1.5) * 100)}%
                           </span>
                         </div>
                       )}
