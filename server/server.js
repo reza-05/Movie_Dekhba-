@@ -6,11 +6,12 @@ import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { Server as TrackerServer } from 'bittorrent-tracker';
-import { checkR2Status, generateUploadUrl, deleteR2Object, checkR2ObjectExists } from './r2Service.js';
-import { pipeTelegramToR2 } from './telegramService.js';
+import { checkR2Status } from './r2Service.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import catalogRouter from './routes/catalog.js';
+import streamRouter from './routes/stream.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,6 +19,9 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
+
+// In-memory room store (defined early for routing references)
+const rooms = new Map();
 
 // Secure Express apps by setting various HTTP headers
 app.use(helmet({
@@ -37,289 +41,9 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// Stricter rate limiter specifically for file uploads to prevent resource exhaustion (R2/S3)
-const uploadLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 15, // Limit each IP to 15 upload URL requests per hour
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Upload url generation quota exceeded. You can only request 15 uploads per hour.' }
-});
-
-// Render Keep-Alive Endpoint & Self-Pinging Routine
-app.get('/api/keep-alive', (req, res) => {
-  res.json({ status: 'alive', timestamp: new Date().toISOString() });
-});
-
-const RENDER_URL = process.env.RENDER_EXTERNAL_URL;
-if (RENDER_URL) {
-  console.log(`[Keep-Alive] System active. Target URL: ${RENDER_URL}`);
-  setInterval(async () => {
-    try {
-      const response = await fetch(`${RENDER_URL}/api/keep-alive`);
-      const data = await response.json();
-      console.log(`[Keep-Alive] Self-ping successful:`, data);
-    } catch (err) {
-      console.error(`[Keep-Alive] Self-ping failed:`, err.message);
-    }
-  }, 10 * 60 * 1000); // Ping every 10 minutes to prevent Render's 15-min idle spin-down
-}
-
-// Cloudflare R2 Upload Endpoints
-app.get('/api/r2-config', (req, res) => {
-  res.json({ configured: checkR2Status() });
-});
-
-app.get('/api/r2-upload-url', uploadLimiter, async (req, res) => {
-  const { fileName, fileType } = req.query;
-  if (!fileName || !fileType) {
-    return res.status(400).json({ error: 'fileName and fileType query params are required.' });
-  }
-
-  try {
-    const urls = await generateUploadUrl(fileName, fileType);
-    
-    // Automatically delete the object from R2 after 4 hours to recycle storage space
-    setTimeout(async () => {
-      try {
-        console.log(`[R2 Service] Auto-cleanup timer triggered for key: ${urls.key}`);
-        await deleteR2Object(urls.key);
-      } catch (err) {
-        console.error(`[R2 Service] Auto-cleanup failed for key ${urls.key}:`, err.message);
-      }
-    }, 4 * 60 * 60 * 1000); // 4 hours
-    
-    res.json(urls);
-  } catch (error) {
-    console.error('Error generating presigned URL:', error);
-    res.status(500).json({ error: 'Failed to generate presigned upload URL.' });
-  }
-});
-
-// Curated Movies Catalog Endpoint
-app.get('/api/movies-catalog', (req, res) => {
-  try {
-    const catalogPath = path.join(__dirname, 'moviesCatalog.json');
-    const data = fs.readFileSync(catalogPath, 'utf8');
-    res.json(JSON.parse(data));
-  } catch (error) {
-    console.error('Error reading movies catalog:', error);
-    res.status(500).json({ error: 'Failed to read movies catalog.' });
-  }
-});
-
-// Sync Telegram Catalog Endpoint
-app.post('/api/sync-telegram', async (req, res) => {
-  try {
-    const { initTelegram } = await import('./telegramService.js');
-    const client = await initTelegram();
-    if (!client) {
-      return res.status(500).json({ error: 'Telegram client not initialized.' });
-    }
-
-    const channelId = '-1004329714585';
-    console.log(`[Sync Catalog] Fetching recent messages from Telegram channel ${channelId}...`);
-
-    // Fetch last 100 messages
-    const messages = await client.getMessages(channelId, { limit: 100 });
-    if (!messages || messages.length === 0) {
-      return res.json({ message: 'No messages found in the channel.', count: 0 });
-    }
-
-    const catalogPath = path.join(__dirname, 'moviesCatalog.json');
-    let catalog = [];
-    try {
-      catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
-    } catch (e) {
-      catalog = [];
-    }
-
-    // Default existing catalog items without category to 'movies'
-    catalog = catalog.map(item => ({
-      ...item,
-      category: item.category || 'movies'
-    }));
-
-    let addedCount = 0;
-    
-    for (const msg of messages) {
-      // Ensure the message contains a document media (the video file)
-      if (!msg.media || !msg.media.document) continue;
-
-      const text = msg.message || '';
-      const lowercaseText = text.toLowerCase();
-      
-      // We only sync messages that are explicitly tagged with our hashtags
-      let category = '';
-      if (lowercaseText.includes('#movie')) {
-        category = 'movies';
-      } else if (lowercaseText.includes('#anime')) {
-        category = 'anime';
-      } else if (lowercaseText.includes('#series')) {
-        category = 'series';
-      }
-
-      if (!category) continue; // Skip messages without our tags
-
-      const messageIdStr = String(msg.id);
-      
-      // Check if this Telegram message is already synced in the catalog
-      const exists = catalog.some(item => item.telegramChannelId === channelId && item.telegramMessageId === messageIdStr);
-      if (exists) continue;
-
-      // Parse metadata from caption lines
-      const lines = text.split('\n');
-      let title = '';
-      let genre = '';
-      let rating = '8.0';
-      let poster = '';
-      let description = '';
-
-      for (const line of lines) {
-        const lowerLine = line.toLowerCase().trim();
-        if (lowerLine.startsWith('title:')) {
-          title = line.substring(6).trim();
-        } else if (lowerLine.startsWith('genre:')) {
-          genre = line.substring(6).trim();
-        } else if (lowerLine.startsWith('rating:')) {
-          rating = line.substring(7).trim();
-        } else if (lowerLine.startsWith('poster:')) {
-          poster = line.substring(7).trim();
-        } else if (lowerLine.startsWith('description:')) {
-          description = line.substring(12).trim();
-        }
-      }
-
-      // Fallback title from filename
-      if (!title) {
-        const docAttr = msg.media.document.attributes.find(attr => attr.className === 'DocumentAttributeFilename');
-        title = docAttr ? docAttr.fileName.replace(/\.[^/.]+$/, "") : `Video ${msg.id}`;
-      }
-
-      if (!poster) {
-        poster = '/posters/zero_day.jpg'; // default nice fallback poster
-      }
-
-      const id = `tg-${msg.id}`;
-
-      catalog.push({
-        id,
-        title,
-        genre: genre || 'General',
-        rating,
-        poster,
-        description: description || 'No description provided.',
-        telegramChannelId: channelId,
-        telegramMessageId: messageIdStr,
-        category
-      });
-      
-      addedCount++;
-    }
-
-    if (addedCount > 0) {
-      fs.writeFileSync(catalogPath, JSON.stringify(catalog, null, 2), 'utf8');
-      console.log(`[Sync Catalog] Successfully added ${addedCount} new items from Telegram channel!`);
-    } else {
-      console.log('[Sync Catalog] Catalog is already up-to-date.');
-    }
-
-    res.json({ message: `Successfully synced. Added ${addedCount} new items.`, addedCount, catalog });
-
-  } catch (error) {
-    console.error('[Sync Catalog Error]:', error);
-    res.status(500).json({ error: 'Failed to sync catalog from Telegram.' });
-  }
-});
-
-// Load Movie Endpoint (Initiate Telegram to R2 Piping)
-app.post('/api/load-movie', async (req, res) => {
-  const { roomCode, movieId } = req.body;
-  if (!roomCode || !movieId) {
-    return res.status(400).json({ error: 'roomCode and movieId are required.' });
-  }
-
-  try {
-    const catalogPath = path.join(__dirname, 'moviesCatalog.json');
-    const catalogData = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
-    const movie = catalogData.find(m => m.id === movieId);
-    
-    if (!movie) {
-      return res.status(404).json({ error: 'Movie not found in catalog.' });
-    }
-
-    // Inform all room members that movie load has started
-    io.to(roomCode).emit('movie-loading-start', { title: movie.title });
-
-    // Respond immediately to host so the browser request doesn't hang
-    res.json({ message: 'Movie download and piping initiated successfully.', title: movie.title });
-
-    // Execute piping job asynchronously
-    const key = `movie-${movieId}.mp4`;
-    const cachedExists = await checkR2ObjectExists(key);
-
-    if (cachedExists) {
-      console.log(`[Piping Job] Cached object found in R2: ${key}. Skipping download and using cache.`);
-      let publicUrl = '';
-      if (process.env.CLOUDFLARE_R2_PUBLIC_URL) {
-        const baseUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL.replace(/\/$/, '');
-        publicUrl = `${baseUrl}/${key}`;
-      } else {
-        publicUrl = `https://${process.env.CLOUDFLARE_R2_BUCKET_NAME}.${process.env.CLOUDFLARE_ACCOUNT_ID}.r2.dev/${key}`;
-      }
-
-      // Broadcast stream completion directly to the room
-      io.to(roomCode).emit('movie-loaded', {
-        videoSrc: publicUrl,
-        title: movie.title
-      });
-      return;
-    }
-
-    console.log(`[Piping Job] Starting piping for room ${roomCode}, movie: ${movie.title}`);
-    
-    const { publicUrl, key: uploadedKey } = await pipeTelegramToR2(
-      movie.telegramChannelId,
-      movie.telegramMessageId,
-      movieId,
-      (downloaded, total) => {
-        const percent = total > 0 ? Math.round((downloaded / total) * 100) : 0;
-        // Emit real-time progress update to the room
-        io.to(roomCode).emit('movie-loading-progress', {
-          percent,
-          downloadedBytes: downloaded,
-          totalBytes: total,
-          title: movie.title
-        });
-      }
-    );
-
-    // Auto cleanup after 4 hours
-    setTimeout(async () => {
-      try {
-        console.log(`[R2 Service] Auto-cleanup timer triggered for key: ${uploadedKey}`);
-        await deleteR2Object(uploadedKey);
-      } catch (err) {
-        console.error(`[R2 Service] Auto-cleanup failed for key ${uploadedKey}:`, err.message);
-      }
-    }, 4 * 60 * 60 * 1000); // 4 hours
-
-    // Broadcast stream completion to all room members
-    io.to(roomCode).emit('movie-loaded', {
-      videoSrc: publicUrl,
-      title: movie.title
-    });
-
-    console.log(`[Piping Job] Completed. Stream URL: ${publicUrl}`);
-
-  } catch (error) {
-    console.error('[Load Movie Error]:', error);
-    io.to(roomCode).emit('movie-loading-error', {
-      error: 'Failed to transfer movie from Telegram storage to streaming bucket.',
-      title: movieId
-    });
-  }
-});
+// Register API routes
+app.use('/api', catalogRouter);
+app.use('/api', streamRouter);
 
 const server = createServer(app);
 
@@ -342,6 +66,9 @@ const io = new Server(server, {
   },
 });
 
+app.set('io', io);
+app.set('rooms', rooms);
+
 // Master Upgrade Dispatcher to prevent Socket.io from destroying tracker WebSocket connections
 const upgradeListeners = server.listeners('upgrade').slice();
 server.removeAllListeners('upgrade');
@@ -358,8 +85,7 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
-// In-memory room store
-const rooms = new Map();
+// In-memory room store (already declared at top of file)
 
 // Helper to sanitize inputs and prevent XSS scripting injections
 const sanitizeInput = (str) => {
@@ -434,7 +160,7 @@ io.on('connection', (socket) => {
   });
 
   // Handle room joining
-  socket.on('join-room', ({ roomCode, name, deviceId }) => {
+  socket.on('join-room', async ({ roomCode, name, deviceId }) => {
     const code = roomCode.trim().toUpperCase();
     const sanitizedName = sanitizeInput(name);
     if (!rooms.has(code)) {
@@ -496,6 +222,18 @@ io.on('connection', (socket) => {
     // Emit persistent subtitles to the newly joined client
     socket.emit('subtitle-updated', room.subtitles || null);
 
+    // Generate a fresh signed URL if a cloud file is active to avoid token expiration for late joiners
+    let currentCloudUrl = room.cloudUrl;
+    if (room.cloudUrlKey) {
+      try {
+        const { generatePresignedDownloadUrl } = await import('./r2Service.js');
+        currentCloudUrl = await generatePresignedDownloadUrl(room.cloudUrlKey);
+        room.cloudUrl = currentCloudUrl; // Update cache
+      } catch (err) {
+        console.error('[Presigned URL Guest Generation Error]:', err);
+      }
+    }
+
     // Notify the room about the new user and state
     io.to(code).emit('room-updated', {
       roomCode: code,
@@ -506,7 +244,7 @@ io.on('connection', (socket) => {
       fileName: room.fileName,
       fileSize: room.fileSize,
       youtubeUrl: room.youtubeUrl,
-      cloudUrl: room.cloudUrl,
+      cloudUrl: currentCloudUrl,
     });
   });
 

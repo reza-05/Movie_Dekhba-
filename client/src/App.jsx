@@ -375,36 +375,7 @@ function App() {
           </span>
         </div>
         
-        <nav className="flex items-center gap-4 sm:gap-6 ml-6 mr-auto relative z-20 select-none">
-          <button 
-            type="button"
-            onClick={() => {
-              setActiveView('landing');
-              setError('');
-            }}
-            className={`text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all duration-200 cursor-pointer ${
-              activeView === 'landing' 
-                ? 'text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]' 
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Home
-          </button>
-          <button 
-            type="button"
-            onClick={() => {
-              setActiveView('movies');
-              setError('');
-            }}
-            className={`text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all duration-200 cursor-pointer ${
-              activeView === 'movies' 
-                ? 'text-indigo-400 drop-shadow-[0_0_8px_rgba(99,102,241,0.5)]' 
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Movies
-          </button>
-        </nav>
+
         
         <button
           onClick={() => {

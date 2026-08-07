@@ -62,21 +62,23 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const [catalogSearchQuery, setCatalogSearchQuery] = useState('');
   const [catalogSelectedGenre, setCatalogSelectedGenre] = useState('All');
   const [catalogSelectedCategory, setCatalogSelectedCategory] = useState('movies');
+  const [activeEpisodeSelectMovie, setActiveEpisodeSelectMovie] = useState(null);
+
+  const fetchCatalog = async () => {
+    try {
+      const res = await fetch(`${backendUrl}/api/movies-catalog`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data)) {
+          setMoviesCatalog(data);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching catalog in room:', err);
+    }
+  };
 
   useEffect(() => {
-    const fetchCatalog = async () => {
-      try {
-        const res = await fetch(`${backendUrl}/api/movies-catalog`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data)) {
-            setMoviesCatalog(data);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching catalog in room:', err);
-      }
-    };
     fetchCatalog();
   }, []);
   const [catalogList, setCatalogList] = useState(() => {
@@ -354,6 +356,10 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
   const videoRef = useRef(null);
   const isSyncing = useRef(false);
   const chatEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+
+  const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
+  const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
   
   // File Transfer References
   const fileRef = useRef(null);
@@ -830,12 +836,54 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     };
   }, [socketConnected, videoSrc, youtubeUrl]);
 
-  // 3. Auto-scroll Chat to bottom
-  useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  // 3. Auto-scroll Chat to bottom smoothly within container
+  const scrollToBottom = (smooth = true) => {
+    if (messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      container.scrollTo({
+        top: container.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto'
+      });
+      setShowScrollBottomBtn(false);
+      setIsUserScrolledUp(false);
     }
-  }, [messages, chatOpen]);
+  };
+
+  const handleChatScroll = () => {
+    if (messagesContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesContainerRef.current;
+      const isUp = scrollHeight - scrollTop - clientHeight > 120;
+      setIsUserScrolledUp(isUp);
+      if (!isUp) {
+        setShowScrollBottomBtn(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (chatOpen && activeSidebarTab === 'chat' && messages.length > 0) {
+      const lastMsg = messages[messages.length - 1];
+      const isMe = lastMsg && lastMsg.sender === userName;
+
+      if (isMe || !isUserScrolledUp) {
+        const timer = setTimeout(() => {
+          scrollToBottom(true);
+        }, 50);
+        return () => clearTimeout(timer);
+      } else {
+        setShowScrollBottomBtn(true);
+      }
+    }
+  }, [messages, chatOpen, activeSidebarTab]);
+
+  useEffect(() => {
+    if (chatOpen && activeSidebarTab === 'chat') {
+      const timer = setTimeout(() => {
+        scrollToBottom(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [chatOpen, activeSidebarTab]);
 
   // YouTube URL extraction helper
   const extractYouTubeId = (url) => {
@@ -1650,6 +1698,8 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     socket.current.emit('chat-message', chatInput.trim());
     setChatInput('');
     setShowPicker(false);
+    setIsUserScrolledUp(false);
+    setTimeout(() => scrollToBottom(true), 50);
   };
 
   const copyRoomCode = () => {
@@ -1748,25 +1798,44 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
     <div className="min-h-screen bg-[#02040a] flex flex-col text-slate-100 font-sans">
       {/* Room Header */}
       <header className="px-6 py-3 flex flex-col sm:flex-row items-center justify-between border-b border-white/[0.04] bg-slate-950/45 backdrop-blur-xl gap-4">
-        <div className="flex items-center gap-4 w-full sm:w-auto">
-          <button 
-            onClick={onLeave}
-            className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-all"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold tracking-tight text-white">Movie Room</h2>
-              <div className={`h-2.5 w-2.5 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+        <div className="flex items-center gap-6 w-full sm:w-auto">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={onLeave}
+              className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-all"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold tracking-tight text-white">Movie Room</h2>
+                <div className={`h-2.5 w-2.5 rounded-full ${socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+              </div>
+              {videoName && (
+                <p className="text-xs text-indigo-400 font-medium truncate max-w-xs md:max-w-md" title={videoName}>
+                  File: {videoName}
+                </p>
+              )}
             </div>
-            {videoName && (
-              <p className="text-xs text-indigo-400 font-medium truncate max-w-xs md:max-w-md" title={videoName}>
-                File: {videoName}
-              </p>
-            )}
           </div>
+
+          {/* Movies & Series Catalog Button */}
+          <button
+            type="button"
+            onClick={() => {
+              fetchCatalog();
+              setShowCatalogOverlay(true);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              showCatalogOverlay
+                ? 'bg-indigo-600/10 text-indigo-400 border-indigo-500/20'
+                : 'bg-white/[0.02] border-white/[0.06] text-slate-350 hover:bg-white/[0.06] hover:text-white cursor-pointer active:scale-95'
+            }`}
+          >
+            <Film className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
+            <span>Movies & Series</span>
+          </button>
         </div>
 
         {/* Room Code */}
@@ -2325,16 +2394,6 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                   {isHost && (
                     <button 
                       type="button"
-                      onClick={() => setShowCatalogOverlay(true)}
-                      className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors bg-transparent border-none cursor-pointer p-0 flex items-center gap-1"
-                    >
-                      <Film className="h-3.5 w-3.5" />
-                      Browse Movies
-                    </button>
-                  )}
-                  {isHost && (
-                    <button 
-                      type="button"
                       onClick={handleHostReset}
                       className="text-slate-450 hover:text-white font-bold transition-colors bg-transparent border-none cursor-pointer p-0"
                     >
@@ -2472,7 +2531,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
 
         {/* Collapsible Chat */}
         {chatOpen && (
-          <aside className="w-full md:w-80 lg:w-96 border-t md:border-t-0 md:border-l border-white/[0.04] bg-slate-950/60 backdrop-blur-xl flex flex-col shadow-2xl relative z-10 h-[350px] md:h-auto">
+          <aside className="w-full md:w-80 lg:w-96 border-t md:border-t-0 md:border-l border-white/[0.04] bg-slate-950/60 backdrop-blur-xl flex flex-col shadow-2xl relative z-10 h-[450px] md:h-[calc(100vh-65px)] flex-shrink-0 overflow-hidden">
             <div className="px-2 py-2 border-b border-white/[0.04] flex items-center justify-between bg-slate-950/40">
               <div className="flex gap-1">
                 <button
@@ -2647,201 +2706,220 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
                 </div>
               </div>
             ) : (
-              <>
-                <div className="flex-grow p-4 overflow-y-auto flex flex-col gap-3">
-              {messages.length === 0 ? (
-                <div className="flex-grow flex flex-col items-center justify-center text-center p-6 text-slate-500">
-                  <MessageSquare className="h-8 w-8 text-slate-700 mb-2" />
-                  <p className="text-xs font-bold text-slate-400">No messages yet</p>
-                  <p className="text-[10px] text-slate-500/90 mt-1">Start chatting with your friends!</p>
-                </div>
-              ) : (
-                messages.map((msg) => {
-                  const isMe = msg.sender === userName;
-                  return (
-                    <div 
-                      key={msg.id} 
-                      className={`flex flex-col max-w-[85%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
-                    >
-                      <div className={`flex items-center gap-1 mb-1 px-1 select-none ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                        {(() => {
-                          const senderProfileEntry = Object.entries(usersList).find(([sid, up]) => up.name === msg.sender);
-                          const senderSid = senderProfileEntry ? senderProfileEntry[0] : '';
-                          const sortedUsersList = Object.entries(usersList).sort((a, b) => a[0].localeCompare(b[0]));
-                          const senderIdx = sortedUsersList.findIndex(([sid]) => sid === senderSid);
-                          return getUserAvatarSVG(msg.sender, senderIdx !== -1 ? senderIdx : undefined, 'h-4 w-4');
-                        })()}
-                        <span className="text-[9px] text-slate-500 font-bold">{msg.sender}</span>
-                      </div>
-                      
-                      {msg.text.startsWith('gif:') ? (
-                        <div className="rounded-xl overflow-hidden border border-white/[0.08] shadow-lg max-w-[200px] bg-slate-900">
-                          <img 
-                            src={msg.text.substring(4)} 
-                            alt="GIF" 
-                            className="w-full h-auto object-cover" 
-                            referrerPolicy="no-referrer"
-                          />
-                        </div>
-                      ) : (
-                        <div className={`p-3 rounded-2xl text-xs leading-relaxed ${
-                          isMe 
-                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-tr-none shadow-md shadow-indigo-600/5' 
-                            : 'bg-[#0f1422]/80 text-slate-200 rounded-tl-none border border-white/[0.05] backdrop-blur-sm shadow-sm'
-                        }`}>
-                          {msg.text}
-                        </div>
-                      )}
-
-                      <span className="text-[8px] text-slate-600 mt-1 px-1">
-                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+              <div className="flex-grow min-h-0 flex flex-col overflow-hidden relative">
+                {/* Messages Container */}
+                <div 
+                  ref={messagesContainerRef}
+                  onScroll={handleChatScroll}
+                  className="flex-grow min-h-0 p-4 overflow-y-auto flex flex-col gap-3 scroll-smooth"
+                >
+                  {messages.length === 0 ? (
+                    <div className="flex-grow flex flex-col items-center justify-center text-center p-6 text-slate-500">
+                      <MessageSquare className="h-8 w-8 text-slate-700 mb-2" />
+                      <p className="text-xs font-bold text-slate-400">No messages yet</p>
+                      <p className="text-[10px] text-slate-500/90 mt-1">Start chatting with your friends!</p>
                     </div>
-                  );
-                })
-              )}
-              <div ref={chatEndRef} />
-            </div>
+                  ) : (
+                    messages.map((msg) => {
+                      const isMe = msg.sender === userName;
+                      return (
+                        <div 
+                          key={msg.id} 
+                          className={`flex flex-col max-w-[85%] ${isMe ? 'self-end items-end' : 'self-start items-start'}`}
+                        >
+                          <div className={`flex items-center gap-1 mb-1 px-1 select-none ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                            {(() => {
+                              const senderProfileEntry = Object.entries(usersList).find(([sid, up]) => up.name === msg.sender);
+                              const senderSid = senderProfileEntry ? senderProfileEntry[0] : '';
+                              const sortedUsersList = Object.entries(usersList).sort((a, b) => a[0].localeCompare(b[0]));
+                              const senderIdx = sortedUsersList.findIndex(([sid]) => sid === senderSid);
+                              return getUserAvatarSVG(msg.sender, senderIdx !== -1 ? senderIdx : undefined, 'h-4 w-4');
+                            })()}
+                            <span className="text-[9px] text-slate-500 font-bold">{msg.sender}</span>
+                          </div>
+                          
+                          {msg.text.startsWith('gif:') ? (
+                            <div className="rounded-xl overflow-hidden border border-white/[0.08] shadow-lg max-w-[200px] bg-slate-900">
+                              <img 
+                                src={msg.text.substring(4)} 
+                                alt="GIF" 
+                                className="w-full h-auto object-cover" 
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          ) : (
+                            <div className={`p-3 rounded-2xl text-xs leading-relaxed ${
+                              isMe 
+                                ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-tr-none shadow-md shadow-indigo-600/10' 
+                                : 'bg-[#0f1422]/90 text-slate-200 rounded-tl-none border border-white/[0.06] backdrop-blur-sm shadow-sm'
+                            }`}>
+                              {msg.text}
+                            </div>
+                          )}
 
-            {/* Premium Emoji & GIF Picker Popover */}
-            {showPicker && (
-              <div className="mx-4 mb-2 bg-[#0a0f1d]/95 border border-white/[0.08] backdrop-blur-xl rounded-2xl p-3.5 shadow-2xl flex flex-col gap-2 relative z-50 animate-scale-up select-none">
-                
-                {/* Popover Header / Tabs */}
-                <div className="flex bg-[#02040a]/65 p-0.5 rounded-xl border border-white/[0.04]">
-                  <button
-                    type="button"
-                    onClick={() => setPickerTab('emojis')}
-                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                      pickerTab === 'emojis'
-                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Emojis
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPickerTab('gifs')}
-                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
-                      pickerTab === 'gifs'
-                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md'
-                        : 'text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    GIFs
-                  </button>
+                          <span className="text-[8px] text-slate-600 mt-1 px-1">
+                            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div ref={chatEndRef} />
                 </div>
 
-                {/* Emojis Tab Content */}
-                {pickerTab === 'emojis' && (
-                  <div className="grid grid-cols-6 gap-2 max-h-40 overflow-y-auto p-1 text-center scrollbar-none">
-                    {['🍿', '🎬', '🎥', '😂', '😍', '🔥', '👏', '🎉', '🚀', '😭', '😱', '😡', '💯', '👍', '👎', '💖', '🤔', '😴', '💀', '🤩', '👀', '🥳', '💩', '🤝'].map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        onClick={() => {
-                          setChatInput(prev => prev + emoji);
-                        }}
-                        className="text-lg hover:scale-125 transition-transform p-1 rounded hover:bg-white/[0.04] cursor-pointer"
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
+                {/* Floating "New Messages ↓" Button */}
+                {showScrollBottomBtn && (
+                  <button
+                    type="button"
+                    onClick={() => scrollToBottom(true)}
+                    className="absolute bottom-16 left-1/2 -translate-x-1/2 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-indigo-600 to-indigo-700 text-white text-[11px] font-bold shadow-xl border border-indigo-400/40 hover:from-indigo-500 hover:to-indigo-600 transition-all flex items-center gap-1.5 z-30 animate-bounce cursor-pointer"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                    <span>New Messages</span>
+                  </button>
                 )}
 
-                {/* GIFs Tab Content */}
-                {pickerTab === 'gifs' && (
-                  <div className="flex flex-col gap-2 text-left">
-                    {/* GIF Search Bar */}
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400">
-                        <Search className="h-3 w-3" />
-                      </div>
-                      <input
-                        type="text"
-                        value={gifSearchQuery}
-                        onChange={(e) => setGifSearchQuery(e.target.value)}
-                        placeholder="Search Giphy..."
-                        className="w-full py-1.5 pl-8 pr-3 rounded-lg text-[10px] text-slate-100 border border-white/[0.04] bg-slate-900/40 focus:bg-slate-950/60 focus:border-indigo-500/60 placeholder:text-slate-600 outline-none transition-all duration-200"
-                      />
+                {/* Premium Emoji & GIF Picker Popover */}
+                {showPicker && (
+                  <div className="mx-4 mb-2 bg-[#0a0f1d]/95 border border-white/[0.08] backdrop-blur-xl rounded-2xl p-3.5 shadow-2xl flex flex-col gap-2 relative z-50 animate-scale-up select-none">
+                    
+                    {/* Popover Header / Tabs */}
+                    <div className="flex bg-[#02040a]/65 p-0.5 rounded-xl border border-white/[0.04]">
+                      <button
+                        type="button"
+                        onClick={() => setPickerTab('emojis')}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          pickerTab === 'emojis'
+                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        Emojis
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPickerTab('gifs')}
+                        className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                          pickerTab === 'gifs'
+                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 text-white shadow-md'
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        GIFs
+                      </button>
                     </div>
 
-                    {/* GIF Scroll Grid */}
-                    <div className="grid grid-cols-3 gap-1.5 max-h-36 overflow-y-auto scrollbar-none p-0.5">
-                      {loadingGifs ? (
-                        <div className="col-span-3 text-center py-6 text-[10px] text-slate-500 animate-pulse">
-                          Searching Giphy...
-                        </div>
-                      ) : gifsList.length === 0 ? (
-                        <div className="col-span-3 text-center py-6 text-[10px] text-slate-600">
-                          No GIFs found.
-                        </div>
-                      ) : (
-                        gifsList.map((gifUrl, idx) => (
+                    {/* Emojis Tab Content */}
+                    {pickerTab === 'emojis' && (
+                      <div className="grid grid-cols-6 gap-2 max-h-40 overflow-y-auto p-1 text-center scrollbar-none">
+                        {['🍿', '🎬', '🎥', '😂', '😍', '🔥', '👏', '🎉', '🚀', '😭', '😱', '😡', '💯', '👍', '👎', '💖', '🤔', '😴', '💀', '🤩', '👀', '🥳', '💩', '🤝'].map((emoji) => (
                           <button
-                            key={idx}
+                            key={emoji}
                             type="button"
                             onClick={() => {
-                              socket.current.emit('chat-message', `gif:${gifUrl}`);
-                              // Add to local message list immediately for local feedback
-                              const localMsg = {
-                                id: Math.random().toString(36).substr(2, 9),
-                                sender: userName,
-                                text: `gif:${gifUrl}`,
-                                timestamp: Date.now()
-                              };
-                              setMessages(prev => [...prev, localMsg]);
-                              setShowPicker(false);
+                              setChatInput(prev => prev + emoji);
                             }}
-                            className="aspect-square rounded-lg overflow-hidden border border-white/[0.04] hover:border-indigo-500/40 hover:scale-105 transition-all bg-slate-950 cursor-pointer"
+                            className="text-lg hover:scale-125 transition-transform p-1 rounded hover:bg-white/[0.04] cursor-pointer"
                           >
-                            <img 
-                              src={gifUrl} 
-                              alt="GIF" 
-                              className="w-full h-full object-cover" 
-                              referrerPolicy="no-referrer"
-                            />
+                            {emoji}
                           </button>
-                        ))
-                      )}
-                    </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* GIFs Tab Content */}
+                    {pickerTab === 'gifs' && (
+                      <div className="flex flex-col gap-2 text-left">
+                        {/* GIF Search Bar */}
+                        <div className="relative group">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400">
+                            <Search className="h-3 w-3" />
+                          </div>
+                          <input
+                            type="text"
+                            value={gifSearchQuery}
+                            onChange={(e) => setGifSearchQuery(e.target.value)}
+                            placeholder="Search Giphy..."
+                            className="w-full py-1.5 pl-8 pr-3 rounded-lg text-[10px] text-slate-100 border border-white/[0.04] bg-slate-900/40 focus:bg-slate-950/60 focus:border-indigo-500/60 placeholder:text-slate-600 outline-none transition-all duration-200"
+                          />
+                        </div>
+
+                        {/* GIF Scroll Grid */}
+                        <div className="grid grid-cols-3 gap-1.5 max-h-36 overflow-y-auto scrollbar-none p-0.5">
+                          {loadingGifs ? (
+                            <div className="col-span-3 text-center py-6 text-[10px] text-slate-500 animate-pulse">
+                              Searching Giphy...
+                            </div>
+                          ) : gifsList.length === 0 ? (
+                            <div className="col-span-3 text-center py-6 text-[10px] text-slate-600">
+                              No GIFs found.
+                            </div>
+                          ) : (
+                            gifsList.map((gifUrl, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => {
+                                  socket.current.emit('chat-message', `gif:${gifUrl}`);
+                                  const localMsg = {
+                                    id: Math.random().toString(36).substr(2, 9),
+                                    sender: userName,
+                                    text: `gif:${gifUrl}`,
+                                    timestamp: Date.now()
+                                  };
+                                  setMessages(prev => [...prev, localMsg]);
+                                  setShowPicker(false);
+                                  setIsUserScrolledUp(false);
+                                  setTimeout(() => scrollToBottom(true), 50);
+                                }}
+                                className="aspect-square rounded-lg overflow-hidden border border-white/[0.04] hover:border-indigo-500/40 hover:scale-105 transition-all bg-slate-950 cursor-pointer"
+                              >
+                                <img 
+                                  src={gifUrl} 
+                                  alt="GIF" 
+                                  className="w-full h-full object-cover" 
+                                  referrerPolicy="no-referrer"
+                                />
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
-            <form onSubmit={handleSendChat} className="p-4 border-t border-white/[0.04] bg-slate-950/20">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowPicker(!showPicker)}
-                  className={`p-2.5 rounded-xl border transition-all active:scale-95 flex items-center justify-center cursor-pointer select-none ${
-                    showPicker
-                      ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
-                      : 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-slate-200 hover:border-indigo-500/30'
-                  }`}
-                >
-                  <Smile className="h-4.5 w-4.5" />
-                </button>
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder="Say something to the room..."
-                  className="flex-grow py-2.5 px-4 rounded-xl text-xs text-slate-100 tracking-wide border border-white/[0.06] bg-slate-900/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_12px_rgba(99,102,241,0.12)] placeholder:text-slate-500 transition-all duration-300 outline-none"
-                />
-                <button
-                  type="submit"
-                  disabled={!chatInput.trim()}
-                  className="p-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 disabled:opacity-50 disabled:pointer-events-none rounded-xl text-white transition-all shadow-md shadow-indigo-600/10 active:scale-95 flex items-center justify-center cursor-pointer"
-                >
-                  <Send className="h-4 w-4" />
-                </button>
+                {/* Chat Input Form */}
+                <form onSubmit={handleSendChat} className="p-3 md:p-4 border-t border-white/[0.04] bg-slate-950/40 flex-shrink-0">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowPicker(!showPicker)}
+                      className={`p-2.5 rounded-xl border transition-all active:scale-95 flex items-center justify-center cursor-pointer select-none ${
+                        showPicker
+                          ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+                          : 'bg-white/[0.02] border-white/[0.06] text-slate-400 hover:text-slate-200 hover:border-indigo-500/30'
+                      }`}
+                    >
+                      <Smile className="h-4.5 w-4.5" />
+                    </button>
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder="Say something to the room..."
+                      className="flex-grow py-2.5 px-4 rounded-xl text-xs text-slate-100 tracking-wide border border-white/[0.06] bg-slate-900/40 focus:bg-slate-950/60 focus:border-indigo-500/60 focus:shadow-[0_0_12px_rgba(99,102,241,0.12)] placeholder:text-slate-500 transition-all duration-300 outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!chatInput.trim()}
+                      className="p-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 disabled:opacity-50 disabled:pointer-events-none rounded-xl text-white transition-all shadow-md shadow-indigo-600/10 active:scale-95 flex items-center justify-center cursor-pointer"
+                    >
+                      <Send className="h-4 w-4" />
+                    </button>
+                  </div>
+                </form>
               </div>
-            </form>
-            </>
             )}
           </aside>
         )}
@@ -3053,7 +3131,7 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
             {/* Close Button */}
             <button 
               type="button"
-              onClick={() => setShowCatalogOverlay(false)}
+              onClick={() => { setShowCatalogOverlay(false); setActiveEpisodeSelectMovie(null); }}
               className="absolute top-4 right-4 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.04] text-slate-400 hover:text-white transition-all cursor-pointer z-50"
             >
               <X className="h-5 w-5" />
@@ -3131,69 +3209,147 @@ function TheatreRoom({ roomCode: initialRoomCode, userName, roomAccess, deviceId
               ))}
             </div>
 
-            {/* Movie grid container */}
+            {/* Movie grid or Episode Selector container */}
             <div className="flex-grow overflow-y-auto pr-1">
-              {moviesCatalog.filter(movie => {
-                const matchesCategory = movie.category === catalogSelectedCategory || (!movie.category && catalogSelectedCategory === 'movies');
-                const matchesSearch = movie.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || 
-                                      (movie.genre && movie.genre.toLowerCase().includes(catalogSearchQuery.toLowerCase())) ||
-                                      (movie.description && movie.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
-                const matchesGenre = catalogSelectedGenre === 'All' || (movie.genre && movie.genre.includes(catalogSelectedGenre));
-                return matchesCategory && matchesSearch && matchesGenre;
-              }).length === 0 ? (
-                <div className="py-16 text-center text-slate-500">
-                  <p className="text-sm font-semibold">No items found matching your criteria.</p>
+              {activeEpisodeSelectMovie ? (
+                <div className="flex flex-col gap-6">
+                  {/* Back button and show header */}
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setActiveEpisodeSelectMovie(null)}
+                      className="px-3 py-1.5 rounded-lg border border-white/[0.06] bg-white/[0.02] text-xs font-bold text-slate-300 hover:text-white hover:bg-white/[0.06] transition-all cursor-pointer"
+                    >
+                      ← Back to Catalog
+                    </button>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-white">{activeEpisodeSelectMovie.title}</h3>
+                      <p className="text-[10px] text-slate-400 font-semibold">{activeEpisodeSelectMovie.genre} • ★ {activeEpisodeSelectMovie.rating}</p>
+                    </div>
+                  </div>
+
+                  {/* Show Description & Poster */}
+                  <div className="flex gap-4 p-4 rounded-xl border border-white/[0.04] bg-white/[0.01]">
+                    <img 
+                      src={activeEpisodeSelectMovie.poster} 
+                      alt="" 
+                      className="w-16 h-24 object-cover rounded-lg border border-white/[0.06]"
+                    />
+                    <div className="flex flex-col justify-center text-left">
+                      <h4 className="text-xs font-bold text-slate-300">About the Show</h4>
+                      <p className="text-[10px] text-slate-500 mt-1 leading-relaxed line-clamp-3">{activeEpisodeSelectMovie.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Grid of episodes */}
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-300 text-left mb-3">Select Episode</h4>
+                    
+                    {!activeEpisodeSelectMovie.episodes || activeEpisodeSelectMovie.episodes.length === 0 ? (
+                      <div className="py-8 text-center text-slate-600 text-[11px] font-semibold">
+                        No episodes available for this show.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2.5">
+                        {activeEpisodeSelectMovie.episodes.map((ep) => (
+                          <button
+                            key={ep.episodeNumber}
+                            type="button"
+                            onClick={() => {
+                              if (!isHost) return;
+                              setShowCatalogOverlay(false);
+                              setActiveEpisodeSelectMovie(null);
+                              fetch(`${backendUrl}/api/load-movie`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                  roomCode, 
+                                  movieId: activeEpisodeSelectMovie.id,
+                                  episodeNumber: ep.episodeNumber 
+                                })
+                              }).catch(err => console.error('Error loading episode:', err));
+                            }}
+                            className={`aspect-square rounded-xl flex items-center justify-center text-xs font-extrabold border transition-all select-none cursor-pointer ${
+                              isHost 
+                                ? 'bg-indigo-600/5 border-white/[0.06] text-slate-300 hover:bg-indigo-600 hover:text-white hover:border-transparent hover:scale-[1.05]'
+                                : 'bg-white/[0.01] border-white/[0.03] text-slate-600 cursor-not-allowed'
+                            }`}
+                            title={ep.title ? `Episode ${ep.episodeNumber}: ${ep.title}` : `Episode ${ep.episodeNumber}`}
+                          >
+                            {ep.episodeNumber}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {moviesCatalog.filter(movie => {
-                    const matchesCategory = movie.category === catalogSelectedCategory || (!movie.category && catalogSelectedCategory === 'movies');
-                    const matchesSearch = movie.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || 
-                                          (movie.genre && movie.genre.toLowerCase().includes(catalogSearchQuery.toLowerCase())) ||
-                                          (movie.description && movie.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
-                    const matchesGenre = catalogSelectedGenre === 'All' || (movie.genre && movie.genre.includes(catalogSelectedGenre));
-                    return matchesCategory && matchesSearch && matchesGenre;
-                  }).map(movie => (
-                    <div
-                      key={movie.id}
-                      onClick={() => {
-                        if (!isHost) return;
-                        setShowCatalogOverlay(false);
-                        fetch(`${backendUrl}/api/load-movie`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ roomCode, movieId: movie.id })
-                        }).catch(err => console.error('Error changing movie:', err));
-                      }}
-                      className="bg-[#0b0f19]/30 border border-white/[0.05] rounded-xl overflow-hidden cursor-pointer group hover:border-indigo-500/30 transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between shadow-lg"
-                    >
-                      <div className="w-full aspect-[2/3] relative bg-slate-950 overflow-hidden">
-                        <img
-                          src={movie.poster}
-                          alt={movie.title}
-                          loading="lazy"
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
-                          <div className="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white">
-                            <Play className="h-4 w-4 fill-white ml-0.5" />
+                moviesCatalog.filter(movie => {
+                  const matchesCategory = movie.category === catalogSelectedCategory || (!movie.category && catalogSelectedCategory === 'movies');
+                  const matchesSearch = movie.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || 
+                                        (movie.genre && movie.genre.toLowerCase().includes(catalogSearchQuery.toLowerCase())) ||
+                                        (movie.description && movie.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
+                  const matchesGenre = catalogSelectedGenre === 'All' || (movie.genre && movie.genre.includes(catalogSelectedGenre));
+                  return matchesCategory && matchesSearch && matchesGenre;
+                }).length === 0 ? (
+                  <div className="py-16 text-center text-slate-500">
+                    <p className="text-sm font-semibold">No items found matching your criteria.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {moviesCatalog.filter(movie => {
+                      const matchesCategory = movie.category === catalogSelectedCategory || (!movie.category && catalogSelectedCategory === 'movies');
+                      const matchesSearch = movie.title.toLowerCase().includes(catalogSearchQuery.toLowerCase()) || 
+                                            (movie.genre && movie.genre.toLowerCase().includes(catalogSearchQuery.toLowerCase())) ||
+                                            (movie.description && movie.description.toLowerCase().includes(catalogSearchQuery.toLowerCase()));
+                      const matchesGenre = catalogSelectedGenre === 'All' || (movie.genre && movie.genre.includes(catalogSelectedGenre));
+                      return matchesCategory && matchesSearch && matchesGenre;
+                    }).map(movie => (
+                      <div
+                        key={movie.id}
+                        onClick={() => {
+                          if (movie.category === 'anime' || movie.category === 'series' || movie.episodes) {
+                            setActiveEpisodeSelectMovie(movie);
+                          } else {
+                            if (!isHost) return;
+                            setShowCatalogOverlay(false);
+                            fetch(`${backendUrl}/api/load-movie`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ roomCode, movieId: movie.id })
+                            }).catch(err => console.error('Error changing movie:', err));
+                          }
+                        }}
+                        className="bg-[#0b0f19]/30 border border-white/[0.05] rounded-xl overflow-hidden cursor-pointer group hover:border-indigo-500/30 transition-all duration-300 hover:scale-[1.02] flex flex-col justify-between shadow-lg"
+                      >
+                        <div className="w-full aspect-[2/3] relative bg-slate-950 overflow-hidden">
+                          <img
+                            src={movie.poster}
+                            alt={movie.title}
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all duration-300">
+                            <div className="h-10 w-10 rounded-full bg-indigo-600 flex items-center justify-center text-white">
+                              <Play className="h-4 w-4 fill-white ml-0.5" />
+                            </div>
+                          </div>
+                          {movie.rating && (
+                            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/75 text-[9px] font-extrabold text-amber-400">
+                              ★ {movie.rating}
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-2.5 flex flex-col justify-between flex-grow">
+                          <div>
+                            <h4 className="font-extrabold text-[11px] text-slate-200 line-clamp-1 group-hover:text-white transition-colors">{movie.title}</h4>
+                            <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">{movie.genre}</p>
                           </div>
                         </div>
-                        {movie.rating && (
-                          <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/75 text-[9px] font-extrabold text-amber-400">
-                            ★ {movie.rating}
-                          </div>
-                        )}
                       </div>
-                      <div className="p-2.5 flex flex-col justify-between flex-grow">
-                        <div>
-                          <h4 className="font-extrabold text-[11px] text-slate-200 line-clamp-1 group-hover:text-white transition-colors">{movie.title}</h4>
-                          <p className="text-[9px] text-slate-500 font-semibold uppercase tracking-wider">{movie.genre}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )
               )}
             </div>
 

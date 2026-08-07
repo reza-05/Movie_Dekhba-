@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import dotenv from 'dotenv';
 
@@ -109,6 +109,24 @@ export const checkR2ObjectExists = async (key) => {
   } catch (error) {
     return false;
   }
+};
+
+/**
+ * Generate a temporary presigned download URL for streaming from private R2 bucket
+ * @param {string} key Unique object key in R2
+ * @param {number} expiresInSeconds URL lifetime in seconds (default 2 hours)
+ */
+export const generatePresignedDownloadUrl = async (key, expiresInSeconds = 7200) => {
+  if (!checkR2Status() || !s3Client) {
+    throw new Error('R2 is not initialized or configured.');
+  }
+
+  const command = new GetObjectCommand({
+    Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME,
+    Key: key,
+  });
+
+  return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
 };
 
 export { s3Client };
