@@ -83,37 +83,37 @@
 
 ```mermaid
 flowchart TB
-    subgraph Clients["🌐 Client Ecosystem (Web & Desktop)"]
-        Browser["React 18 Web App (Vite + Tailwind)"]
-        MacApp["macOS Desktop Uploader (Python Pyrogram)"]
+    subgraph Clients["Client Ecosystem"]
+        Browser["React 18 Web App"]
+        MacApp["macOS Desktop Uploader"]
     end
 
-    subgraph Backend["🚀 Server Infrastructure (Node.js + Express)"]
-        SocketServer["Socket.io Realtime Sync & Signaling"]
-        CatalogAPI["Express Catalog & Stream API (/api)"]
-        Tracker["BitTorrent WebSockets Tracker (/tracker)"]
+    subgraph Backend["Server Infrastructure"]
+        SocketServer["Socket.io Realtime Sync"]
+        CatalogAPI["Express Catalog and Stream API"]
+        Tracker["BitTorrent Tracker"]
     end
 
-    subgraph AudioEngine["🎙️ WebRTC Peer-to-Peer Voice Mesh"]
-        Voice1["Peer A (Microphone)"]
-        Voice2["Peer B (Microphone)"]
-        AudioCtx["AudioContext + GainNode (250% Boost)"]
+    subgraph AudioEngine["WebRTC Voice Mesh"]
+        Voice1["Peer A Microphone"]
+        Voice2["Peer B Microphone"]
+        AudioCtx["AudioContext GainNode Boost"]
     end
 
-    subgraph Storage["💾 Video Storage & CDN Layer"]
+    subgraph Storage["Video Storage Layer"]
         R2["Cloudflare R2 Bucket"]
-        Telegram["Telegram Channel (MTProto Stream)"]
+        Telegram["Telegram Channel Stream"]
     end
 
     Browser <-->|WebSocket Realtime Sync| SocketServer
-    Browser <-->|HTTP API / Presigned URLs| CatalogAPI
-    MacApp -->|Upload & Auto Sync Webhook| CatalogAPI
+    Browser <-->|HTTP API| CatalogAPI
+    MacApp -->|Upload Webhook| CatalogAPI
     MacApp -->|Direct MTProto Upload| Telegram
 
     CatalogAPI <-->|Presigned Download Token| R2
-    CatalogAPI <-->|Stream Relay / Subtitles| Telegram
+    CatalogAPI <-->|Stream Relay| Telegram
 
-    Voice1 <-->|WebRTC Peer Connection (STUN)| Voice2
+    Voice1 <-->|WebRTC STUN Mesh| Voice2
     Voice1 --> AudioCtx
     AudioCtx --> Voice2
 ```
